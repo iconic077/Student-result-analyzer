@@ -1,0 +1,2359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>StudySync - Student Performance Analyzer</title>
+
+    <link rel="stylesheet" href="css/style.css">
+</head>
+
+<body>
+
+    <!-- ================= AUTH SCREEN ================= -->
+<div id="authScreen" class="auth-screen">
+
+    <!-- LOGIN -->
+    <div class="auth-card" id="loginCard">
+
+        <div class="auth-logo">
+            <div class="auth-logo-icon">S</div>
+
+            <div>
+                <h2>StudySync</h2>
+                <span>Student Performance Analyzer</span>
+            </div>
+        </div>
+
+        <div class="auth-heading">
+            <span class="eyebrow">WELCOME BACK 👋</span>
+
+            <h1>Login to StudySync</h1>
+
+            <p>
+                Continue your learning journey and track your performance.
+            </p>
+        </div>
+
+        <form id="loginForm">
+
+            <div class="auth-input-group">
+                <label for="loginEmail">
+                    Email or Username
+                </label>
+
+                <input
+                    type="text"
+                    id="loginEmail"
+                    placeholder="Enter email or username"
+                    autocomplete="username"
+                    required
+                >
+            </div>
+
+            <div class="auth-input-group">
+
+                <label for="loginPassword">
+                    Password
+                </label>
+
+                <div class="password-wrapper">
+
+                    <input
+                        type="password"
+                        id="loginPassword"
+                        placeholder="Enter your password"
+                        autocomplete="current-password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        id="loginPasswordToggle"
+                    >
+                        👁️
+                    </button>
+
+                </div>
+
+            </div>
+
+            <div class="auth-options">
+
+                <label class="remember-me">
+                    <input
+                        type="checkbox"
+                        id="rememberMe"
+                    >
+
+                    <span>Remember me</span>
+                </label>
+
+                <button
+                    type="button"
+                    class="forgot-password"
+                    id="forgotPasswordBtn"
+                >
+                    Forgot Password?
+                </button>
+
+            </div>
+
+            <button
+                type="submit"
+                class="btn primary full auth-submit"
+            >
+                🔐 Login
+            </button>
+
+
+            <div class="auth-divider">
+    <span>OR</span>
+</div>
+
+<button
+    type="button"
+    class="google-login-btn"
+    id="googleLoginBtn"
+>
+    <span class="google-icon">G</span>
+    <span>Continue with Google</span>
+</button>
+
+        </form>
+
+        <div class="auth-divider">
+            <span>OR</span>
+        </div>
+
+        <p class="auth-switch">
+            Don't have an account?
+
+            <button
+                type="button"
+                id="showRegisterBtn"
+            >
+                Create Account
+            </button>
+        </p>
+
+    </div>
+
+
+    <!-- REGISTER -->
+    <div
+        class="auth-card hidden"
+        id="registerCard"
+    >
+
+        <div class="auth-logo">
+            <div class="auth-logo-icon">S</div>
+
+            <div>
+                <h2>StudySync</h2>
+                <span>Student Performance Analyzer</span>
+            </div>
+        </div>
+
+        <div class="auth-heading">
+
+            <span class="eyebrow">
+                GET STARTED 🚀
+            </span>
+
+            <h1>Create Account</h1>
+
+            <p>
+                Create your student account and start tracking your progress.
+            </p>
+
+        </div>
+
+        <form id="registerForm">
+
+            <div class="auth-input-group">
+
+                <label for="registerName">
+                    Full Name
+                </label>
+
+                <input
+                    type="text"
+                    id="registerName"
+                    placeholder="Enter your name"
+                    autocomplete="name"
+                    required
+                >
+
+            </div>
+
+
+            <div class="auth-input-group">
+
+                <label for="registerEmail">
+                    Email
+                </label>
+
+                <input
+                    type="email"
+                    id="registerEmail"
+                    placeholder="Enter your email"
+                    autocomplete="email"
+                    required
+                >
+
+            </div>
+
+
+            <div class="auth-input-group">
+
+                <label for="registerUsername">
+                    Username
+                </label>
+
+                <input
+                    type="text"
+                    id="registerUsername"
+                    placeholder="Choose a username"
+                    autocomplete="username"
+                    required
+                >
+
+            </div>
+
+
+            <div class="auth-input-group">
+
+                <label for="registerPassword">
+                    Password
+                </label>
+
+                <div class="password-wrapper">
+
+                    <input
+                        type="password"
+                        id="registerPassword"
+                        placeholder="Create a password"
+                        autocomplete="new-password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        id="registerPasswordToggle"
+                    >
+                        👁️
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <div class="auth-input-group">
+
+                <label for="registerConfirmPassword">
+                    Confirm Password
+                </label>
+
+                <div class="password-wrapper">
+
+                    <input
+                        type="password"
+                        id="registerConfirmPassword"
+                        placeholder="Confirm your password"
+                        autocomplete="new-password"
+                        required
+                    >
+
+                    <button
+                        type="button"
+                        class="password-toggle"
+                        id="registerConfirmPasswordToggle"
+                    >
+                        👁️
+                    </button>
+
+                </div>
+
+            </div>
+
+
+            <button
+                type="submit"
+                class="btn primary full auth-submit"
+            >
+                ✨ Create Account
+            </button>
+
+        </form>
+
+
+        <div class="auth-divider">
+            <span>OR</span>
+        </div>
+
+
+        <p class="auth-switch">
+
+            Already have an account?
+
+            <button
+                type="button"
+                id="showLoginBtn"
+            >
+                Login
+            </button>
+
+        </p>
+
+    </div>
+
+</div>
+<!-- ================= END AUTH SCREEN ================= -->
+
+<div class="app">
+
+    <!-- ================= SIDEBAR ================= -->
+
+    <aside class="sidebar">
+
+        <div class="logo">
+
+            <div class="logo-icon">S</div>
+
+            <div>
+                <h2>StudySync</h2>
+                <span>Student Analyzer</span>
+            </div>
+
+        </div>
+
+
+        <nav>
+
+            <button class="nav-item active" data-section="dashboard">
+                <span>🏠</span>
+                Dashboard
+            </button>
+
+            <button class="nav-item" data-section="results">
+                <span>📚</span>
+                Results
+            </button>
+
+            <button class="nav-item" data-section="analytics">
+                <span>📊</span>
+                Analytics
+            </button>
+
+            <button class="nav-item" data-section="planner">
+                <span>🗓️</span>
+                Study Planner
+            </button>
+
+            <button class="nav-item" data-section="tasks">
+                <span>✅</span>
+                Daily Tasks
+            </button>
+
+            <button class="nav-item" data-section="rewards">
+                <span>🏆</span>
+                Rewards
+            </button>
+
+            <button class="nav-item" data-section="settings">
+                <span>⚙️</span>
+                Settings
+            </button>
+
+        </nav>
+
+
+        <div class="sidebar-bottom">
+
+            <div class="mini-card">
+
+                <span>⚡</span>
+
+                <div>
+                    <strong id="sidebarXP">0 XP</strong>
+                    <small>Current XP</small>
+                </div>
+
+            </div>
+
+        </div>
+
+    </aside>
+
+
+    <!-- ================= MAIN ================= -->
+
+    <main class="main">
+
+
+        <!-- ================= TOPBAR ================= -->
+
+        <header class="topbar">
+
+            <div>
+
+                <h1 id="pageTitle">
+                    Dashboard
+                </h1>
+
+                <p id="pageSubtitle">
+                    Your academic overview
+                </p>
+
+            </div>
+
+
+            <div class="top-actions">
+
+                <button
+                    class="icon-btn"
+                    id="notificationBtn"
+                >
+                    🔔
+                </button>
+
+
+                <div class="profile">
+
+                    <div class="avatar">
+                        H
+                    </div>
+
+                    <div>
+
+                        <strong id="topStudentName">
+                            Harsh
+                        </strong>
+
+                        <small>
+                            Student
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </header>
+
+
+
+        <!-- =====================================================
+             DASHBOARD
+        ====================================================== -->
+
+        <section
+            class="page-section active"
+            id="dashboard"
+        >
+
+            <!-- Welcome -->
+
+            <div class="welcome-card">
+
+                <div>
+
+                    <span class="eyebrow">
+                        WELCOME BACK 👋
+                    </span>
+
+                    <h2>
+                        Let's improve your performance.
+                    </h2>
+
+                    <p>
+                        Analyze your results, complete your tasks and build
+                        a consistent study routine.
+                    </p>
+
+                </div>
+
+
+                <div class="welcome-icon">
+                    🚀
+                </div>
+
+            </div>
+
+
+
+            <!-- Stats -->
+
+            <div class="stats-grid">
+
+                <div class="stat-card purple">
+
+                    <div class="stat-icon">
+                        📊
+                    </div>
+
+                    <span>
+                        Average
+                    </span>
+
+                    <strong id="dashAverage">
+                        --
+                    </strong>
+
+                    <small>
+                        Overall marks
+                    </small>
+
+                </div>
+
+
+                <div class="stat-card pink">
+
+                    <div class="stat-icon">
+                        🎓
+                    </div>
+
+                    <span>
+                        Grade
+                    </span>
+
+                    <strong id="dashGrade">
+                        --
+                    </strong>
+
+                    <small>
+                        Current grade
+                    </small>
+
+                </div>
+
+
+                <div class="stat-card cyan">
+
+                    <div class="stat-icon">
+                        ⚡
+                    </div>
+
+                    <span>
+                        Total XP
+                    </span>
+
+                    <strong id="dashXP">
+                        0
+                    </strong>
+
+                    <small>
+                        Earned from tasks
+                    </small>
+
+                </div>
+
+
+                <div class="stat-card orange">
+
+                    <div class="stat-icon">
+                        ✅
+                    </div>
+
+                    <span>
+                        Tasks Done
+                    </span>
+
+                    <strong id="dashTasksDone">
+                        0
+                    </strong>
+
+                    <small id="dashTaskTotal">
+                        0 total tasks
+                    </small>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ================= STREAK ================= -->
+
+            <div class="streak-grid">
+
+                <div class="streak-card streak-current">
+
+                    <div class="streak-card-icon">
+                        🔥
+                    </div>
+
+                    <div class="streak-card-content">
+
+                        <span>
+                            Current Streak
+                        </span>
+
+                        <strong id="currentStreak">
+                            0
+                        </strong>
+
+                        <small>
+                            days
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="streak-card streak-longest">
+
+                    <div class="streak-card-icon">
+                        🏆
+                    </div>
+
+                    <div class="streak-card-content">
+
+                        <span>
+                            Longest Streak
+                        </span>
+
+                        <strong id="longestStreak">
+                            0
+                        </strong>
+
+                        <small>
+                            days
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+                <div class="streak-card streak-today">
+
+                    <div class="streak-card-icon">
+                        📅
+                    </div>
+
+                    <div class="streak-card-content">
+
+                        <span>
+                            Today's Status
+                        </span>
+
+                        <strong id="todayStreakStatus">
+                            Not Started
+                        </strong>
+
+                        <small>
+                            Complete a task to continue
+                        </small>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ================= DASHBOARD GRID ================= -->
+
+            <div class="dashboard-grid">
+
+
+                <!-- Performance -->
+
+                <div class="panel chart-panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                Performance Overview
+                            </h3>
+
+                            <p>
+                                Subject-wise marks
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        class="bar-chart"
+                        id="dashboardChart"
+                    >
+
+                        <div class="empty-state">
+
+                            <span>
+                                📊
+                            </span>
+
+                            <p>
+                                Add your result to see performance.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <!-- Today's Tasks -->
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                Today's Tasks
+                            </h3>
+
+                            <p>
+                                Your study goals
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="dashboardTasks"
+                        class="task-list compact"
+                    >
+
+                        <div class="empty-state">
+
+                            <span>
+                                📝
+                            </span>
+
+                            <p>
+                                No tasks for today.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- ================= STUDY PROGRESS ================= -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h3>
+                            Study Progress
+                        </h3>
+
+                        <p>
+                            Your task completion progress
+                        </p>
+
+                    </div>
+
+                    <strong id="dashboardProgressText">
+                        0%
+                    </strong>
+
+                </div>
+
+
+                <div class="progress-track">
+
+                    <div
+                        class="progress-fill"
+                        id="dashboardProgress"
+                    ></div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             RESULTS
+        ====================================================== -->
+
+        <section
+            class="page-section"
+            id="results"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        RESULT ANALYZER
+                    </span>
+
+                    <h2>
+                        Analyze Your Result
+                    </h2>
+
+                    <p>
+                        Enter your subject-wise marks to analyze your performance.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="form-panel">
+
+                <div class="input-group">
+
+                    <label>
+                        Student Name
+                    </label>
+
+                    <input
+                        type="text"
+                        id="studentName"
+                        placeholder="Enter your name"
+                    >
+
+                </div>
+
+
+
+                <div class="subjects-header">
+
+                    <div>
+
+                        <h3>
+                            Subjects
+                        </h3>
+
+                        <p>
+                            Enter marks between 0 and 100.
+                        </p>
+
+                    </div>
+
+
+                    <button
+                        class="btn secondary"
+                        id="addSubjectBtn"
+                    >
+                        + Add Subject
+                    </button>
+
+                </div>
+
+
+                <div id="subjectsContainer"></div>
+
+
+                <button
+                    class="btn primary full"
+                    id="analyzeBtn"
+                >
+                    📊 Analyze Result
+                </button>
+
+            </div>
+
+
+
+            <div
+                id="resultOutput"
+                class="result-output hidden"
+            >
+
+                <div class="result-summary-grid">
+
+                    <div class="result-card">
+
+                        <span>
+                            Total Marks
+                        </span>
+
+                        <strong id="resultTotal">
+                            0
+                        </strong>
+
+                    </div>
+
+
+                    <div class="result-card">
+
+                        <span>
+                            Average
+                        </span>
+
+                        <strong id="resultAverage">
+                            0%
+                        </strong>
+
+                    </div>
+
+
+                    <div class="result-card">
+
+                        <span>
+                            Grade
+                        </span>
+
+                        <strong id="resultGrade">
+                            --
+                        </strong>
+
+                    </div>
+
+
+                    <div class="result-card">
+
+                        <span>
+                            Status
+                        </span>
+
+                        <strong id="resultStatus">
+                            --
+                        </strong>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="analysis-grid">
+
+                    <div class="panel">
+
+                        <h3>
+                            🏆 Highest Subject
+                        </h3>
+
+                        <div
+                            class="highlight-box"
+                            id="highestSubject"
+                        >
+                            --
+                        </div>
+
+                    </div>
+
+
+                    <div class="panel">
+
+                        <h3>
+                            📌 Lowest Subject
+                        </h3>
+
+                        <div
+                            class="highlight-box"
+                            id="lowestSubject"
+                        >
+                            --
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                Subject Analysis
+                            </h3>
+
+                            <p>
+                                Performance of every subject
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div id="subjectAnalysis"></div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             ANALYTICS
+        ====================================================== -->
+
+        <section
+            class="page-section"
+            id="analytics"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        PERFORMANCE INSIGHTS
+                    </span>
+
+                    <h2>
+                        Analytics Dashboard
+                    </h2>
+
+                    <p>
+                        Understand your strengths, weaknesses and study progress.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="analytics-summary">
+
+                <div class="analytics-card">
+
+                    <span>
+                        📊 Overall Average
+                    </span>
+
+                    <strong id="analyticsAverage">
+                        --
+                    </strong>
+
+                    <small>
+                        Based on your result
+                    </small>
+
+                </div>
+
+
+                <div class="analytics-card">
+
+                    <span>
+                        🎓 Current Grade
+                    </span>
+
+                    <strong id="analyticsGrade">
+                        --
+                    </strong>
+
+                    <small>
+                        Overall grade
+                    </small>
+
+                </div>
+
+
+                <div class="analytics-card">
+
+                    <span>
+                        🏆 Best Subject
+                    </span>
+
+                    <strong id="analyticsBest">
+                        --
+                    </strong>
+
+                    <small id="analyticsBestMarks">
+                        --
+                    </small>
+
+                </div>
+
+
+                <div class="analytics-card">
+
+                    <span>
+                        ⚠️ Needs Improvement
+                    </span>
+
+                    <strong id="analyticsWeak">
+                        --
+                    </strong>
+
+                    <small id="analyticsWeakMarks">
+                        --
+                    </small>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="analytics-grid">
+
+
+                <div class="panel analytics-chart-panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                📈 Subject Performance
+                            </h3>
+
+                            <p>
+                                Marks obtained in each subject
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="analyticsChart"
+                        class="analytics-chart"
+                    >
+
+                        <div class="empty-state">
+
+                            <span>
+                                📊
+                            </span>
+
+                            <p>
+                                Add a result to generate analytics.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                💪 Strong Subjects
+                            </h3>
+
+                            <p>
+                                Subjects where you are performing well.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="strongSubjects"
+                        class="insight-list"
+                    >
+
+                        <div class="empty-state">
+
+                            <p>
+                                No data available.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="analytics-grid">
+
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                🎯 Subjects to Improve
+                            </h3>
+
+                            <p>
+                                Focus more on these subjects.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div
+                        id="weakSubjects"
+                        class="insight-list"
+                    >
+
+                        <div class="empty-state">
+
+                            <p>
+                                No data available.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="panel">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                ✅ Task Analytics
+                            </h3>
+
+                            <p>
+                                Your study consistency.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="task-analytics">
+
+                        <div class="task-stat">
+
+                            <span>
+                                Total Tasks
+                            </span>
+
+                            <strong id="analyticsTotalTasks">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="task-stat">
+
+                            <span>
+                                Completed
+                            </span>
+
+                            <strong id="analyticsCompletedTasks">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="task-stat">
+
+                            <span>
+                                Pending
+                            </span>
+
+                            <strong id="analyticsPendingTasks">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="task-stat">
+
+                            <span>
+                                Completion
+                            </span>
+
+                            <strong id="analyticsCompletion">
+                                0%
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="progress-track">
+
+                        <div
+                            class="progress-fill"
+                            id="analyticsTaskProgress"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="panel suggestion-panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h3>
+                            💡 Improvement Suggestions
+                        </h3>
+
+                        <p>
+                            Personalized suggestions based on your current data.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="improvementSuggestions"
+                    class="suggestions"
+                >
+
+                    <div class="suggestion">
+
+                        <span>
+                            💡
+                        </span>
+
+                        <p>
+                            Add your result to receive personalized suggestions.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             SMART STUDY PLANNER
+        ====================================================== -->
+
+        <section
+            class="page-section"
+            id="planner"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        SMART PLANNER
+                    </span>
+
+                    <h2>
+                        Study Planner
+                    </h2>
+
+                    <p>
+                        Create a personalized study routine based on your performance.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="planner-layout">
+
+
+                <!-- Planner Form -->
+
+                <div class="panel planner-form">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                ⚙️ Plan Settings
+                            </h3>
+
+                            <p>
+                                Tell us how you want to study.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Target / Exam Date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="targetDate"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Daily Study Hours
+                        </label>
+
+                        <input
+                            type="number"
+                            id="dailyHours"
+                            min="0.5"
+                            max="12"
+                            step="0.5"
+                            value="2"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Preferred Start Time
+                        </label>
+
+                        <input
+                            type="time"
+                            id="plannerStartTime"
+                            value="18:00"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Session Length
+                        </label>
+
+                        <select id="sessionLength">
+
+                            <option value="30">
+                                30 Minutes
+                            </option>
+
+                            <option value="45">
+                                45 Minutes
+                            </option>
+
+                            <option value="60"
+                                    selected>
+                                60 Minutes
+                            </option>
+
+                            <option value="90">
+                                90 Minutes
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <button
+                        class="btn primary full"
+                        id="generatePlanBtn"
+                    >
+                        🧠 Generate Personalized Plan
+                    </button>
+
+                </div>
+
+
+
+                <!-- Generated Plan -->
+
+                <div>
+
+                    <div
+                        id="plannerSummary"
+                        class="planner-summary"
+                    >
+
+                        <div class="planner-summary-card">
+
+                            <span>
+                                📚 Subjects
+                            </span>
+
+                            <strong>
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="planner-summary-card">
+
+                            <span>
+                                🎯 Focus Subject
+                            </span>
+
+                            <strong>
+                                --
+                            </strong>
+
+                        </div>
+
+
+                        <div class="planner-summary-card">
+
+                            <span>
+                                ⏱️ Daily Time
+                            </span>
+
+                            <strong>
+                                0h
+                            </strong>
+
+                        </div>
+
+
+                        <div class="planner-summary-card">
+
+                            <span>
+                                📅 Target Date
+                            </span>
+
+                            <strong>
+                                --
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <div class="panel">
+
+                        <div class="panel-header">
+
+                            <div>
+
+                                <h3>
+                                    📋 Personalized Study Plan
+                                </h3>
+
+                                <p>
+                                    Sessions generated from your performance.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+
+                        <div
+                            id="generatedPlan"
+                            class="plan-list"
+                        >
+
+                            <div class="empty-state">
+
+                                <span>
+                                    🧠
+                                </span>
+
+                                <p>
+                                    Generate a plan to see your personalized study sessions.
+                                </p>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             DAILY TASKS
+        ====================================================== -->
+
+        <section
+            class="page-section"
+            id="tasks"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        DAILY PRODUCTIVITY
+                    </span>
+
+                    <h2>
+                        Daily Tasks
+                    </h2>
+
+                    <p>
+                        Create study tasks and earn XP by completing them.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="form-panel">
+
+                <div class="form-grid">
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Task Name
+                        </label>
+
+                        <input
+                            type="text"
+                            id="taskName"
+                            placeholder="e.g. Practice Python"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Subject
+                        </label>
+
+                        <input
+                            type="text"
+                            id="taskSubject"
+                            placeholder="e.g. Python, Data Structure, Maths"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Date
+                        </label>
+
+                        <input
+                            type="date"
+                            id="taskDate"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Start Time
+                        </label>
+
+                        <input
+                            type="time"
+                            id="taskStartTime"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            End Time
+                        </label>
+
+                        <input
+                            type="time"
+                            id="taskEndTime"
+                        >
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Priority
+                        </label>
+
+                        <select id="taskPriority">
+
+                            <option value="Low">
+                                Low — 10 XP
+                            </option>
+
+                            <option
+                                value="Medium"
+                                selected
+                            >
+                                Medium — 20 XP
+                            </option>
+
+                            <option value="High">
+                                High — 30 XP
+                            </option>
+
+                        </select>
+
+                    </div>
+
+
+                    <div class="input-group">
+
+                        <label>
+                            Repeat
+                        </label>
+
+                        <select id="taskRepeat">
+
+                            <option value="Once">
+                                Once
+                            </option>
+
+                            <option value="Daily">
+                                Daily
+                            </option>
+
+                            <option value="Weekly">
+                                Weekly
+                            </option>
+
+                        </select>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="xp-info-box">
+
+                    ⚡ XP is automatically assigned according to priority:
+
+                    <strong>
+                        Low = 10
+                    </strong>,
+
+                    <strong>
+                        Medium = 20
+                    </strong>,
+
+                    <strong>
+                        High = 30
+                    </strong>.
+
+                </div>
+
+
+
+                <button
+                    class="btn primary full"
+                    id="saveTaskBtn"
+                >
+                    + Add Study Task
+                </button>
+
+            </div>
+
+
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h3>
+                            All Study Tasks
+                        </h3>
+
+                        <p>
+                            Manage your study goals.
+                        </p>
+
+                    </div>
+
+
+                    <span
+                        class="task-count"
+                        id="taskCount"
+                    >
+                        0 tasks
+                    </span>
+
+                </div>
+
+
+                <div
+                    id="tasksList"
+                    class="task-list"
+                >
+
+                    <div class="empty-state">
+
+                        <span>
+                            📝
+                        </span>
+
+                        <p>
+                            No tasks yet.
+                        </p>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             REWARDS
+        ====================================================== -->
+
+        <section
+            class="page-section"
+            id="rewards"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        GAMIFICATION
+                    </span>
+
+                    <h2>
+                        Rewards & Badges
+                    </h2>
+
+                    <p>
+                        Complete tasks, earn XP and unlock achievements.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Level Overview -->
+
+            <div class="rewards-overview">
+
+
+                <div class="reward-level-card">
+
+                    <div class="reward-level-icon">
+                        ⚡
+                    </div>
+
+                    <div class="reward-level-info">
+
+                        <span>
+                            Current Level
+                        </span>
+
+                        <strong id="rewardLevel">
+                            Level 1
+                        </strong>
+
+                        <small id="rewardXPText">
+                            0 / 100 XP
+                        </small>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="reward-progress-card">
+
+                    <div class="panel-header">
+
+                        <div>
+
+                            <h3>
+                                🚀 Level Progress
+                            </h3>
+
+                            <p id="rewardNextLevelText">
+                                Earn XP to reach the next level.
+                            </p>
+
+                        </div>
+
+                        <strong id="rewardProgressPercent">
+                            0%
+                        </strong>
+
+                    </div>
+
+
+                    <div class="progress-track">
+
+                        <div
+                            class="progress-fill"
+                            id="rewardLevelProgress"
+                        ></div>
+
+                    </div>
+
+                </div>
+
+
+
+                <div class="reward-stat-card">
+
+                    <span>
+                        🏅 Badges
+                    </span>
+
+                    <strong id="rewardBadgeCount">
+                        0
+                    </strong>
+
+                    <small>
+                        Unlocked
+                    </small>
+
+                </div>
+
+            </div>
+
+
+
+            <!-- Achievement Cards -->
+
+            <div class="panel">
+
+                <div class="panel-header">
+
+                    <div>
+
+                        <h3>
+                            🏆 Achievements
+                        </h3>
+
+                        <p>
+                            Complete milestones to unlock badges.
+                        </p>
+
+                    </div>
+
+                </div>
+
+
+                <div
+                    id="rewardsGrid"
+                    class="rewards-grid"
+                >
+
+                    <!-- First Task -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="first-task"
+                    >
+
+                        <div class="reward-icon">
+                            🌱
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                First Step
+                            </h4>
+
+                            <p>
+                                Complete your first study task.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 10 Tasks -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="ten-tasks"
+                    >
+
+                        <div class="reward-icon">
+                            ⚡
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                Task Master
+                            </h4>
+
+                            <p>
+                                Complete 10 study tasks.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 100 XP -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="hundred-xp"
+                    >
+
+                        <div class="reward-icon">
+                            💯
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                XP Starter
+                            </h4>
+
+                            <p>
+                                Earn your first 100 XP.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 3 Day -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="three-day-streak"
+                    >
+
+                        <div class="reward-icon">
+                            🔥
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                On Fire
+                            </h4>
+
+                            <p>
+                                Maintain a 3-day study streak.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 7 Day -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="seven-day-streak"
+                    >
+
+                        <div class="reward-icon">
+                            🔥
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                Streak Legend
+                            </h4>
+
+                            <p>
+                                Maintain a 7-day study streak.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 14 Day -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="fourteen-day-streak"
+                    >
+
+                        <div class="reward-icon">
+                            🏆
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                Consistency Champion
+                            </h4>
+
+                            <p>
+                                Maintain a 14-day study streak.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- 25 Tasks -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="twenty-five-tasks"
+                    >
+
+                        <div class="reward-icon">
+                            📚
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                Scholar
+                            </h4>
+
+                            <p>
+                                Complete 25 study tasks.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Result -->
+
+                    <div
+                        class="reward-card locked"
+                        data-reward="result-ready"
+                    >
+
+                        <div class="reward-icon">
+                            🎯
+                        </div>
+
+                        <div class="reward-card-content">
+
+                            <h4>
+                                Result Ready
+                            </h4>
+
+                            <p>
+                                Analyze your first academic result.
+                            </p>
+
+                            <span class="reward-status">
+                                🔒 Locked
+                            </span>
+
+                        </div>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        </section>
+
+
+
+        <!-- =====================================================
+             SETTINGS
+        ====================================================== -->
+
+        <section
+            class="page-section"
+            id="settings"
+        >
+
+            <div class="section-heading">
+
+                <div>
+
+                    <span class="eyebrow">
+                        SETTINGS
+                    </span>
+
+                    <h2>
+                        Settings
+                    </h2>
+
+                    <p>
+                        Manage your StudySync data.
+                    </p>
+
+                </div>
+
+            </div>
+
+
+
+            <div class="panel settings-panel">
+
+                <h3>
+                    Local Data
+                </h3>
+
+                <p>
+                    Your current result and tasks are stored locally in your browser.
+                </p>
+
+
+                <button
+                    class="btn danger"
+                    id="clearDataBtn"
+                >
+                    🗑️ Clear All Data
+                </button>
+
+            </div>
+
+
+           <!-- Account -->
+<div class="panel settings-panel">
+    <h3>Account</h3>
+
+    <p>
+        Manage your StudySync account and session.
+    </p>
+
+    <button
+        class="btn danger"
+        id="logoutBtn"
+        type="button"
+        onclick="logout()"
+    >
+        🚪 Logout
+    </button>
+</div> 
+
+        </section>
+
+    </main>
+
+</div>
+
+
+<script src="js/app.js"></script>
+
+</body>
+</html>

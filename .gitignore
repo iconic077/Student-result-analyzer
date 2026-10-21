@@ -1,0 +1,27 @@
+
+# Python virtual environments
+venv/
+.venv/
+env/
+
+# Python cache
+__pycache__/
+*.py[cod]
+
+# Environment variables and secrets
+.env
+.env.*
+**/.env
+**/.env.*
+!.env.example
+
+# Google OAuth credentials
+credentials/
+**/credentials/
+client_secret*.json
+**/client_secret*.json
+
+# Logs and local files
+*.log
+.DS_Store
+Thumbs.db
