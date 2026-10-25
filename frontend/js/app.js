@@ -229,14 +229,14 @@ const googleLoginBtn =
 if (googleLoginBtn) {
     googleLoginBtn.addEventListener("click", () => {
         window.location.href =
-            "http://127.0.0.1:8000/auth/google";
+            "https://student-result-analyzer-6yst.onrender.com/auth/google";
     });
 }
 
 async function checkLoginStatus() {
     try {
         const response = await fetch(
-            "http://127.0.0.1:8000/me",
+            "https://student-result-analyzer-6yst.onrender.com/me",
             {
                 credentials: "include"
             }
@@ -263,7 +263,7 @@ async function checkLoginStatus() {
 async function loadMyResult() {
     try {
         const response = await fetch(
-            "http://127.0.0.1:8000/me/result",
+            "https://student-result-analyzer-6yst.onrender.com/me/result",
             {
                 credentials: "include"
             }
@@ -431,7 +431,7 @@ function handleLogin(event) {
 
 function handleGoogleLogin() {
     window.location.href =
-        "http://127.0.0.1:8000/auth/google";
+        "https://student-result-analyzer-6yst.onrender.com/auth/google";
 }
 
 
@@ -736,7 +736,7 @@ function handleForgotPassword() {
 
 function handleGoogleLogin() {
     window.location.href =
-        "http://127.0.0.1:8000/auth/google";
+        "https://student-result-analyzer-6yst.onrender.com/auth/google";
 }
 
 
@@ -1817,7 +1817,7 @@ async function saveTask() {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:8000/tasks",
+            "https://student-result-analyzer-6yst.onrender.com/tasks",
             {
                 method: "POST",
 
@@ -1901,7 +1901,7 @@ async function loadTasks() {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:8000/tasks",
+            "https://student-result-analyzer-6yst.onrender.com/tasks",
             {
                 method: "GET",
                 credentials: "include"
@@ -2247,7 +2247,7 @@ async function toggleTask(id, completed) {
         if (completed) {
 
             const response = await fetch(
-                `http://127.0.0.1:8000/tasks/${id}/complete`,
+                `https://student-result-analyzer-6yst.onrender.com/tasks/${id}/complete`,
                 {
                     method: "PUT",
                     credentials: "include"
@@ -2311,7 +2311,7 @@ async function deleteTask(id) {
     try {
 
         const response = await fetch(
-            `http://127.0.0.1:8000/tasks/${id}`,
+            `https://student-result-analyzer-6yst.onrender.com/tasks/${id}`,
             {
                 method: "DELETE",
                 credentials: "include"
@@ -4882,7 +4882,7 @@ function escapeHTML(value) {
 async function createTestTask() {
     try {
         const response = await fetch(
-            "http://127.0.0.1:8000/tasks",
+            "https://student-result-analyzer-6yst.onrender.com/tasks",
             {
                 method: "POST",
                 credentials: "include"
@@ -4903,7 +4903,7 @@ async function loadTasks() {
     try {
 
         const response = await fetch(
-            "http://127.0.0.1:8000/tasks",
+            "https://student-result-analyzer-6yst.onrender.com/tasks",
             {
                 method: "GET",
                 credentials: "include"
