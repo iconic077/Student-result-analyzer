@@ -1,3 +1,4 @@
+import json
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
@@ -888,10 +889,18 @@ def get_statistics():
 @app.get("/auth/google")
 def google_login(request: Request):
 
-    flow = Flow.from_client_secrets_file(
-        GOOGLE_CLIENT_SECRETS_FILE,
-        scopes=GOOGLE_SCOPES
-    )
+    client_config_json = os.getenv("GOOGLE_CLIENT_CONFIG_JSON")
+    
+    if client_config_json:
+        flow = Flow.from_client_config(
+            json.loads(client_config_json),
+            scopes=GOOGLE_SCOPES
+        )
+    else:
+        flow = Flow.from_client_secrets_file(
+            GOOGLE_CLIENT_SECRETS_FILE,
+            scopes=GOOGLE_SCOPES
+        )
 
     flow.redirect_uri = GOOGLE_REDIRECT_URI
 
