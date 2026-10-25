@@ -62,10 +62,10 @@ GOOGLE_SCOPES = [
     "https://www.googleapis.com/auth/userinfo.profile"
 ]
 
-GOOGLE_REDIRECT_URI = (
+GOOGLE_REDIRECT_URI = os.getenv(
+    "GOOGLE_REDIRECT_URI",
     "http://127.0.0.1:8000/auth/google/callback"
 )
-
 
 # =========================================================
 # DATABASE CONNECTION
