@@ -259,6 +259,7 @@ async function checkLoginStatus() {
     }
 }
 
+
 async function loadMyResult() {
     try {
         const response = await fetch(
@@ -271,35 +272,53 @@ async function loadMyResult() {
         const data = await response.json();
 
         console.log("My Result:", data);
-        console.log("Result Data:", data.result);
 
         if (data.logged_in && data.result) {
-        
+            const apiResult = data.result;
+            const savedApiResult = {
+                studentName: data.student?.name ?? data.user?.name ?? "Student",
+                subjects: apiResult.subjects,
+                total: Number(apiResult.total_marks ?? 0),
+                average: Number(apiResult.average_marks ?? apiResult.percentage ?? 0),
+                percentage: Number(apiResult.percentage ?? apiResult.average_marks ?? 0),
+                grade: apiResult.grade,
+                passed: apiResult.result === "Pass",
+                updatedAt: new Date().toISOString()
+            };
+            
+            localStorage.setItem(
+                RESULT_KEY,
+                JSON.stringify(savedApiResult)
+            );
+
             document.getElementById("dashAverage").textContent =
-                data.result.average_marks ?? "--";
-        
+                apiResult.average_marks ?? "--";
+
             document.getElementById("dashGrade").textContent =
-                data.result.grade ?? "--";
+                apiResult.grade ?? "--";
+
+            // Keep the backend summary separate from manual subject analysis.
+            console.log("Backend result summary:", apiResult);
         }
 
         if (data.logged_in) {
             document.getElementById("authScreen").style.display = "none";
-        
+
             const dashboard = document.getElementById("dashboard");
-        
+
             if (dashboard) {
                 dashboard.style.display = "block";
             }
 
             initializeApplication();
         }
-
     } catch (error) {
         console.error("Failed to load result:", error);
     }
 }
 
 loadMyResult();
+
 
 
 /* =========================================================
@@ -2994,136 +3013,52 @@ function updateStreakUI() {
    ANALYTICS
    ========================================================= */
 
+
 function updateAnalytics() {
-
-    const result =
-        getSavedResult();
-
-
+    const result = getSavedResult();
     updateTaskAnalytics();
 
-
-    if (!result) {
-
-        document.getElementById(
-            "analyticsAverage"
-        ).textContent =
-            "--";
-
-
-        document.getElementById(
-            "analyticsGrade"
-        ).textContent =
-            "--";
-
-
-        document.getElementById(
-            "analyticsBest"
-        ).textContent =
-            "--";
-
-
-        document.getElementById(
-            "analyticsBestMarks"
-        ).textContent =
-            "--";
-
-
-        document.getElementById(
-            "analyticsWeak"
-        ).textContent =
-            "--";
-
-
-        document.getElementById(
-            "analyticsWeakMarks"
-        ).textContent =
-            "--";
-
-
+    if (!result || !Array.isArray(result.subjects) || result.subjects.length === 0) {
+        document.getElementById("analyticsAverage").textContent = "--";
+        document.getElementById("analyticsGrade").textContent = "--";
+        document.getElementById("analyticsBest").textContent = "--";
+        document.getElementById("analyticsBestMarks").textContent = "--";
+        document.getElementById("analyticsWeak").textContent = "--";
+        document.getElementById("analyticsWeakMarks").textContent = "--";
         renderEmptyAnalytics();
-
         return;
-
     }
 
+    const subjects = result.subjects;
+    const average = Number(result.average ?? result.average_marks ?? result.percentage ?? 0);
+    const grade = result.grade ?? "--";
 
-    document.getElementById(
-        "analyticsAverage"
-    ).textContent =
-        `${result.average.toFixed(1)}%`;
+    document.getElementById("analyticsAverage").textContent =
+        `${average.toFixed(1)}%`;
 
+    document.getElementById("analyticsGrade").textContent = grade;
 
-    document.getElementById(
-        "analyticsGrade"
-    ).textContent =
-        result.grade;
-
-
-    const sorted =
-        [...result.subjects]
-            .sort(
-                (a, b) =>
-                    b.marks -
-                    a.marks
-            );
-
-
-    const best =
-        sorted[0];
-
-
-    const weak =
-        sorted[
-            sorted.length - 1
-        ];
-
-
-    document.getElementById(
-        "analyticsBest"
-    ).textContent =
-        best.name;
-
-
-    document.getElementById(
-        "analyticsBestMarks"
-    ).textContent =
-        `${best.marks}/100`;
-
-
-    document.getElementById(
-        "analyticsWeak"
-    ).textContent =
-        weak.name;
-
-
-    document.getElementById(
-        "analyticsWeakMarks"
-    ).textContent =
-        `${weak.marks}/100`;
-
-
-    renderAnalyticsChart(
-        result.subjects
+    const sorted = [...subjects].sort(
+        (a, b) => Number(b.marks) - Number(a.marks)
     );
 
+    const best = sorted[0];
+    const weak = sorted[sorted.length - 1];
 
-    renderStrongSubjects(
-        result.subjects
-    );
+    document.getElementById("analyticsBest").textContent = best.name;
+    document.getElementById("analyticsBestMarks").textContent =
+        `${best.marks}/${best.max_marks ?? 100}`;
 
+    document.getElementById("analyticsWeak").textContent = weak.name;
+    document.getElementById("analyticsWeakMarks").textContent =
+        `${weak.marks}/${weak.max_marks ?? 100}`;
 
-    renderWeakSubjects(
-        result.subjects
-    );
-
-
-    renderSuggestions(
-        result.subjects,
-        result.average
-    );
-
+    renderAnalyticsChart(subjects);
+    renderStrongSubjects(subjects);
+    renderWeakSubjects(subjects);
+    renderSuggestions(subjects, average);
 }
+
 
 
 function renderEmptyAnalytics() {

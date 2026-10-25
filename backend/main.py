@@ -127,6 +127,7 @@ def get_current_user(request: Request):
         "user": user
     }
 
+
 @app.get("/me/result")
 def get_my_result(request: Request):
 
@@ -141,90 +142,124 @@ def get_my_result(request: Request):
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
 
-    cursor.execute(
-        """
-        SELECT
-            u.user_id,
-            u.name AS user_name,
-            u.email,
-            u.student_id,
-            s.student_id,
-            s.roll_no,
-            s.name AS student_name
-        FROM users u
-        JOIN students s ON u.student_id = s.student_id
-        WHERE u.user_id = %s
-        """,
-        (user_id,)
-    )
+    try:
+        # Get logged-in user's linked student record
+        cursor.execute(
+            """
+            SELECT
+                u.user_id,
+                u.name AS user_name,
+                u.email,
+                s.student_id,
+                s.roll_no,
+                s.name AS student_name
+            FROM users u
+            JOIN students s
+                ON u.student_id = s.student_id
+            WHERE u.user_id = %s
+            """,
+            (user_id,)
+        )
 
-    student = cursor.fetchone()
+        student = cursor.fetchone()
 
-    if student is None:
+        if student is None:
+            return {
+                "logged_in": True,
+                "message": "No student record linked with this account"
+            }
+
+        student_id = student["student_id"]
+
+        # Get result summary
+        cursor.execute(
+            """
+            SELECT
+                COUNT(m.mark_id) AS subjects,
+                ROUND(SUM(m.marks), 2) AS total_marks,
+                ROUND(AVG(m.marks), 2) AS average_marks,
+                ROUND(AVG(m.marks), 2) AS percentage
+            FROM marks m
+            WHERE m.student_id = %s
+            """,
+            (student_id,)
+        )
+
+        result = cursor.fetchone()
+
+        if not result or not result["subjects"]:
+            return {
+                "logged_in": True,
+                "message": "No marks found for this student"
+            }
+
+        # Get individual subject marks
+        cursor.execute(
+            """
+            SELECT
+                sub.subject_name AS name,
+                m.marks,
+                sub.max_marks
+            FROM marks m
+            JOIN subjects sub
+                ON m.subject_id = sub.subject_id
+            WHERE m.student_id = %s
+            ORDER BY sub.subject_name
+            """,
+            (student_id,)
+        )
+
+        subject_results = cursor.fetchall()
+
+        # Calculate grade
+        percentage = float(result["percentage"] or 0)
+
+        if percentage >= 75:
+            grade = "A"
+        elif percentage >= 60:
+            grade = "B"
+        elif percentage >= 50:
+            grade = "C"
+        elif percentage >= 40:
+            grade = "D"
+        else:
+            grade = "F"
+
+        # Preserve subject count and add subject details
+        result["subject_count"] = result["subjects"]
+        result["subjects"] = [
+            {
+                "name": subject["name"],
+                "marks": float(subject["marks"]),
+                "max_marks": float(subject["max_marks"])
+            }
+            for subject in subject_results
+        ]
+
+        result["average_marks"] = percentage
+        result["percentage"] = percentage
+        result["grade"] = grade
+        result["result"] = "Pass" if percentage >= 40 else "Fail"
+
+        return {
+            "logged_in": True,
+            "user": {
+                "user_id": student["user_id"],
+                "name": student["user_name"],
+                "email": student["email"]
+            },
+            "student": {
+                "student_id": student["student_id"],
+                "roll_no": student["roll_no"],
+                "name": student["student_name"]
+            },
+            "result": result
+        }
+
+    finally:
         cursor.close()
         conn.close()
 
-        return {
-            "logged_in": True,
-            "message": "No student record linked with this account"
-        }
-
-    student_id = student["student_id"]
-
-    cursor.execute(
-        """
-        SELECT
-            COUNT(m.mark_id) AS subjects,
-            ROUND(SUM(m.marks), 2) AS total_marks,
-            ROUND(AVG(m.marks), 2) AS average_marks,
-            ROUND(AVG(m.marks), 2) AS percentage
-        FROM marks m
-        WHERE m.student_id = %s
-        """,
-        (student_id,)
-    )
-
-    result = cursor.fetchone()
-
-    cursor.close()
-    conn.close()
-
-    if result is None or result["subjects"] == 0:
-        return {
-            "logged_in": True,
-            "message": "No marks found for this student"
-        }
-
-    percentage = float(result["percentage"])
-
-    if percentage >= 75:
-        grade = "A"
-    elif percentage >= 60:
-        grade = "B"
-    elif percentage >= 50:
-        grade = "C"
-    elif percentage >= 40:
-        grade = "D"
-    else:
-        grade = "F"
-
-    result["grade"] = grade
-    result["result"] = "Pass" if percentage >= 40 else "Fail"
-
-    return {
-        "logged_in": True,
-        "user": {
-            "user_id": student["user_id"],
-            "name": student["user_name"],
-            "email": student["email"]
-        },
-        "student": {
-            "student_id": student["student_id"],
-            "roll_no": student["roll_no"],
-            "name": student["student_name"]
-        },
-        "result": result
-    }
 
 # =========================================================
 # TASKS
