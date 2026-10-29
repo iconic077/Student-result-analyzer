@@ -50,6 +50,9 @@ if not os.getenv("SESSION_SECRET"):
 # GOOGLE OAUTH CONFIGURATION
 # =========================================================
 
+
+GOOGLE_CLIENT_CONFIG_JSON = os.getenv("GOOGLE_CLIENT_CONFIG_JSON")
+
 GOOGLE_CLIENT_SECRETS_FILE = os.path.join(
     os.path.dirname(__file__),
     "credentials",
@@ -946,12 +949,22 @@ def google_callback(
         }
 
     # Recreate the Flow WITH the original code verifier
-    flow = Flow.from_client_secrets_file(
-        GOOGLE_CLIENT_SECRETS_FILE,
-        scopes=GOOGLE_SCOPES,
-        state=saved_state,
-        code_verifier=saved_code_verifier
-    )
+    client_config_json = os.getenv("GOOGLE_CLIENT_CONFIG_JSON")
+    
+    if client_config_json:
+        flow = Flow.from_client_config(
+            json.loads(client_config_json),
+            scopes=GOOGLE_SCOPES,
+            state=state,
+            code_verifier=saved_code_verifier
+        )
+    else:
+        flow = Flow.from_client_secrets_file(
+            GOOGLE_CLIENT_SECRETS_FILE,
+            scopes=GOOGLE_SCOPES,
+            state=state,
+            code_verifier=saved_code_verifier
+        )
 
     flow.redirect_uri = GOOGLE_REDIRECT_URI
 
