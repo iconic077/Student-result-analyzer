@@ -1078,5 +1078,5 @@ def google_callback(
     request.session.pop("code_verifier", None)
 
     return RedirectResponse(
-    url=f"http://127.0.0.1:5500/index.html?google_login_success&user_id={user_id}"
+    url=f"http://127.0.0.1:5500/index.html?google_login=success&user_id={user_id}"
 )

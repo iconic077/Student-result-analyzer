@@ -36,27 +36,24 @@ let editingTaskId = null;
    INITIALIZATION
    ========================================================= */
 
+
 document.addEventListener("DOMContentLoaded", () => {
 
     setupAuth();
-
     setupNavigation();
 
     const params = new URLSearchParams(
         window.location.search
     );
 
-    const googleLogin =
-        params.get("google_login");
+    const googleLoginSuccess =
+        params.has("google_login_success");
 
     const userId =
         params.get("user_id");
 
-    if (
-        googleLogin === "success" &&
-        userId
-    ) {
-        // Save Google login session
+    if (googleLoginSuccess && userId) {
+
         localStorage.setItem(
             AUTH_SESSION_KEY,
             "true"
@@ -67,16 +64,13 @@ document.addEventListener("DOMContentLoaded", () => {
             userId
         );
 
-        // Remove login parameters from URL
         window.history.replaceState(
             {},
             document.title,
             window.location.pathname
         );
 
-        // Open dashboard
         showDashboard();
-
         return;
     }
 
@@ -87,6 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
 });
+
 
 
 /* =========================================================
