@@ -3,6 +3,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
+from pathlib import Path
 
 import mysql.connector
 from dotenv import load_dotenv
@@ -36,7 +38,9 @@ app.add_middleware(
 
 app.add_middleware(
     SessionMiddleware,
-    secret_key=os.getenv("SESSION_SECRET")
+    secret_key=os.getenv("SESSION_SECRET"),
+    same_site="none",
+    https_only=True
 )
 
 if not os.getenv("SESSION_SECRET"):
@@ -269,16 +273,26 @@ def get_my_result(request: Request):
 # TASKS
 # =========================================================
 
+def get_task_user_id(request: Request):
+    user_id = request.session.get("user_id")
+
+    if not user_id:
+        user_id = request.headers.get("X-User-ID")
+
+    return user_id
+
 @app.get("/tasks")
 def get_tasks(request: Request):
 
-    user_id = request.session.get("user_id")
-
+    user_id = get_task_user_id(request)
+    
     if not user_id:
         return {
             "logged_in": False,
             "message": "User is not logged in"
         }
+    
+    user_id = int(user_id)
 
     conn = get_db_connection()
     cursor = conn.cursor(dictionary=True)
@@ -344,13 +358,15 @@ def get_tasks(request: Request):
 @app.post("/tasks")
 async def create_task(request: Request):
 
-    user_id = request.session.get("user_id")
-
+    user_id = get_task_user_id(request)
+    
     if not user_id:
         return {
             "logged_in": False,
             "message": "User is not logged in"
         }
+    
+    user_id = int(user_id)
 
     data = await request.json()
 
@@ -1078,5 +1094,14 @@ def google_callback(
     request.session.pop("code_verifier", None)
 
     return RedirectResponse(
-    url=f"http://127.0.0.1:5500/index.html?google_login=success&user_id={user_id}"
+    url=f"/index.html?google_login=success&user_id={user_id}"
+)
+
+# Serve frontend from the same Render origin
+FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
+
+app.mount(
+    "/",
+    StaticFiles(directory=str(FRONTEND_DIR), html=True),
+    name="frontend"
 )

@@ -47,7 +47,7 @@ document.addEventListener("DOMContentLoaded", () => {
     );
 
     const googleLoginSuccess =
-        params.has("google_login_success");
+        params.get("google_login") === "success";
 
     const userId =
         params.get("user_id");
@@ -1815,29 +1815,21 @@ async function saveTask() {
             "https://student-result-analyzer-6yst.onrender.com/tasks",
             {
                 method: "POST",
-
                 credentials: "include",
-
+            
                 headers: {
-                    "Content-Type": "application/json"
+                    "Content-Type": "application/json",
+                    "X-User-ID": localStorage.getItem("studysync_google_user_id")
                 },
-
+            
                 body: JSON.stringify({
-
                     title: name,
-
-                    subject_id: subject,
-
+                    subject_name: subject,
                     task_date: date,
-
                     start_time: startTime || null,
-
-                    end_time: endTime || null,
-
+                    end_time: endtime || null,
                     priority: priority,
-
                     repeat_type: repeat
-
                 })
             }
         );
