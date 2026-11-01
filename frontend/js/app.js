@@ -1827,7 +1827,7 @@ async function saveTask() {
                     subject_name: subject,
                     task_date: date,
                     start_time: startTime || null,
-                    end_time: endtime || null,
+                    end_time: endTime || null,
                     priority: priority,
                     repeat_type: repeat
                 })
