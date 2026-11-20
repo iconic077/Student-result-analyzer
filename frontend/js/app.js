@@ -11,10 +11,7 @@ const RESULT_KEY = "studysync_result";
 const TASK_KEY = "studysync_tasks";
 const XP_KEY = "studysync_xp";
 const PLANNER_KEY = "studysync_planner";
-
-const AUTH_USER_KEY = "studysync_user";
-const AUTH_SESSION_KEY = "studysync_logged_in";
-
+const LEGACY_AUTH_USER_KEY = "studysync_user";
 
 const XP_BY_PRIORITY = {
     Low: 10,
@@ -30,6 +27,12 @@ const XP_BY_PRIORITY = {
 let subjects = [];
 let tasks = [];
 let editingTaskId = null;
+const API_BASE = window.location.protocol === "file:"
+    ? "https://student-result-analyzer-6yst.onrender.com"
+    : ["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? `${window.location.protocol}//${window.location.hostname}:8000`
+        : window.location.origin;
+let currentUser = null;
 
 
 /* =========================================================
@@ -37,132 +40,106 @@ let editingTaskId = null;
    ========================================================= */
 
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
     setupAuth();
+    setupProfileMenu();
     setupNavigation();
+    setupActivityCalendar();
+    setupResultSystem();
+    setupTaskSystem();
+    setupPlanner();
+    setupSettings();
+    setupIOSGlassSheen();
 
-    const params = new URLSearchParams(
-        window.location.search
-    );
+    const params = new URLSearchParams(window.location.search);
+    const googleLoginCompleted =
+        params.get("google_login") === "success" && params.get("user_id");
 
-    const googleLoginSuccess =
-        params.get("google_login") === "success";
-
-    const userId =
-        params.get("user_id");
-
-    if (googleLoginSuccess && userId) {
-
-        localStorage.setItem(
-            AUTH_SESSION_KEY,
-            "true"
-        );
-
-        localStorage.setItem(
-            "studysync_google_user_id",
-            userId
-        );
-
-        window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname
-        );
-
-        showDashboard();
-        return;
+    if (googleLoginCompleted) {
+        localStorage.setItem("studysync_google_user_id", params.get("user_id"));
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    if (isLoggedIn()) {
+    const googleUser = await fetchGoogleSession();
+
+    if (googleUser) {
+        await loadMyResult();
         showDashboard();
     } else {
+        localStorage.removeItem("studysync_google_user_id");
+        localStorage.removeItem("studysync_logged_in");
+        sessionStorage.removeItem("studysync_logged_in");
         showLogin();
     }
 
 });
 
 
-
 /* =========================================================
    AUTHENTICATION SYSTEM
-   FRONTEND DEMO - BACKEND WILL COME LATER
    ========================================================= */
 
 function setupAuth() {
 
     const loginForm =
         document.getElementById("loginForm");
-
     const registerForm =
         document.getElementById("registerForm");
-
     const showRegisterBtn =
         document.getElementById("showRegisterBtn");
-
     const showLoginBtn =
         document.getElementById("showLoginBtn");
-
     const loginPasswordToggle =
         document.getElementById("loginPasswordToggle");
-
     const registerPasswordToggle =
         document.getElementById("registerPasswordToggle");
-
     const registerConfirmPasswordToggle =
         document.getElementById(
             "registerConfirmPasswordToggle"
         );
-
     const forgotPasswordBtn =
         document.getElementById("forgotPasswordBtn");
-
+    const passwordResetRequestForm =
+        document.getElementById("passwordResetRequestForm");
+    const passwordResetForm =
+        document.getElementById("passwordResetForm");
+    const resendPasswordResetCodeBtn =
+        document.getElementById("resendPasswordResetCodeBtn");
+    const backToLoginBtn =
+        document.getElementById("backToLoginBtn");
     const googleLoginBtn =
         document.getElementById("googleLoginBtn");
 
-
     if (loginForm) {
-
         loginForm.addEventListener(
             "submit",
             handleLogin
         );
-
     }
 
-
     if (registerForm) {
-
         registerForm.addEventListener(
             "submit",
             handleRegister
         );
-
     }
 
-
     if (showRegisterBtn) {
-
         showRegisterBtn.addEventListener(
             "click",
             showRegister
         );
-
     }
 
-
     if (showLoginBtn) {
-
         showLoginBtn.addEventListener(
             "click",
             showLogin
         );
-
     }
 
-
     if (loginPasswordToggle) {
-
         loginPasswordToggle.addEventListener(
             "click",
             () => togglePassword(
@@ -170,25 +147,20 @@ function setupAuth() {
                 loginPasswordToggle
             )
         );
-
     }
-
 
     if (registerPasswordToggle) {
 
         registerPasswordToggle.addEventListener(
-            "click",
+                    "click",
             () => togglePassword(
                 "registerPassword",
                 registerPasswordToggle
             )
-        );
-
+    );
     }
 
-
     if (registerConfirmPasswordToggle) {
-
         registerConfirmPasswordToggle.addEventListener(
             "click",
             () => togglePassword(
@@ -196,42 +168,52 @@ function setupAuth() {
                 registerConfirmPasswordToggle
             )
         );
-
     }
 
-
     if (forgotPasswordBtn) {
-
         forgotPasswordBtn.addEventListener(
             "click",
             handleForgotPassword
         );
+    }
 
+    if (passwordResetRequestForm) {
+        passwordResetRequestForm.addEventListener(
+            "submit",
+            handlePasswordResetRequest
+        );
+    }
+
+    if (passwordResetForm) {
+        passwordResetForm.addEventListener(
+            "submit",
+            handlePasswordResetConfirm
+        );
+    }
+
+    if (resendPasswordResetCodeBtn) {
+        resendPasswordResetCodeBtn.addEventListener(
+            "click",
+            handlePasswordResetResend
+        );
+    }
+
+    if (backToLoginBtn) {
+        backToLoginBtn.addEventListener("click", showLogin);
     }
 
     if (googleLoginBtn) {
-    googleLoginBtn.addEventListener(
-        "click",
-        handleGoogleLogin
-    );
-}
-
-}
-
-const googleLoginBtn =
-    document.getElementById("googleLoginBtn");
-
-if (googleLoginBtn) {
-    googleLoginBtn.addEventListener("click", () => {
-        window.location.href =
-            "https://student-result-analyzer-6yst.onrender.com/auth/google";
-    });
+        googleLoginBtn.addEventListener(
+            "click",
+            handleGoogleLogin
+        );
+    }
 }
 
 async function checkLoginStatus() {
     try {
         const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/me",
+            `${API_BASE}/me`,
             {
                 credentials: "include"
             }
@@ -254,179 +236,236 @@ async function checkLoginStatus() {
     }
 }
 
-
 async function loadMyResult() {
     try {
-        const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/me/result",
-            {
-                credentials: "include"
-            }
-        );
-
+        const response = await fetch(`${API_BASE}/me/result`, {
+            credentials: "include"
+        });
         const data = await response.json();
 
-        console.log("My Result:", data);
+        if (!data.logged_in || !data.result || !data.result.subjects) return;
 
-        if (data.logged_in && data.result) {
-            const apiResult = data.result;
-            const savedApiResult = {
-                studentName: data.student?.name ?? data.user?.name ?? "Student",
-                subjects: apiResult.subjects,
-                total: Number(apiResult.total_marks ?? 0),
-                average: Number(apiResult.average_marks ?? apiResult.percentage ?? 0),
-                percentage: Number(apiResult.percentage ?? apiResult.average_marks ?? 0),
-                grade: apiResult.grade,
-                passed: apiResult.result === "Pass",
-                updatedAt: new Date().toISOString()
-            };
-            
-            localStorage.setItem(
-                RESULT_KEY,
-                JSON.stringify(savedApiResult)
-            );
+        const apiResult = data.result;
+        const subjectList = apiResult.subjects.map(s => ({
+            name: s.name,
+            marks: s.marks,
+            max_marks: s.max_marks
+        }));
 
-            document.getElementById("dashAverage").textContent =
-                apiResult.average_marks ?? "--";
+        if (subjectList.length === 0) return;
 
-            document.getElementById("dashGrade").textContent =
-                apiResult.grade ?? "--";
+        const sortedDesc = [...subjectList].sort((a, b) => b.marks - a.marks);
+        const sortedAsc = [...subjectList].sort((a, b) => a.marks - b.marks);
 
-            // Keep the backend summary separate from manual subject analysis.
-            console.log("Backend result summary:", apiResult);
-        }
+        const saved = {
+            studentName: data.student?.name ?? data.user?.name ?? "Student",
+            subjects: subjectList,
+            total: Number(apiResult.total_marks ?? 0),
+            average: Number(apiResult.percentage ?? 0),
+            percentage: Number(apiResult.percentage ?? 0),
+            grade: apiResult.grade,
+            passed: apiResult.result === "Pass",
+            highest: sortedDesc[0],
+            lowest: sortedAsc[0],
+            updatedAt: new Date().toISOString()
+        };
 
-        if (data.logged_in) {
-            document.getElementById("authScreen").style.display = "none";
+        localStorage.setItem(RESULT_KEY, JSON.stringify(saved));
 
-            const dashboard = document.getElementById("dashboard");
-
-            if (dashboard) {
-                dashboard.style.display = "block";
-            }
-
-            initializeApplication();
-        }
     } catch (error) {
         console.error("Failed to load result:", error);
     }
 }
-
-loadMyResult();
-
 
 
 /* =========================================================
    LOGIN
    ========================================================= */
 
-function handleLogin(event) {
-
+async function handleLogin(event) {
     event.preventDefault();
-
-
     const loginValue =
         document.getElementById("loginEmail")
             .value
             .trim();
-
     const password =
         document.getElementById("loginPassword")
             .value;
 
-
     if (!loginValue || !password) {
-
         alert("Please enter your login details.");
-
         return;
-
     }
 
-
-    const savedUser =
-        getAuthUser();
-
-
-    if (!savedUser) {
-
-        alert(
-            "No account found. Please create an account first. 📝"
-        );
-
-        return;
-
-    }
-
-
-    const identifierMatches =
-        loginValue.toLowerCase() ===
-            savedUser.email.toLowerCase()
-        ||
-        loginValue.toLowerCase() ===
-            savedUser.username.toLowerCase();
-
-
-    if (!identifierMatches) {
-
-        alert(
-            "Email/Username does not match."
-        );
-
-        return;
-
-    }
-
-
-    if (password !== savedUser.password) {
-
-        alert(
-            "Incorrect password. Please try again."
-        );
-
-        return;
-
-    }
-
-
-    localStorage.setItem(
-        AUTH_SESSION_KEY,
-        "true"
+    const submitButton = event.currentTarget.querySelector(
+        'button[type="submit"]'
     );
+    submitButton.disabled = true;
+    try {
+        let data;
+        try {
+            data = await submitAuthRequest("/login", {
+                email: loginValue,
+                password
+            });
+        } catch (error) {
+            const legacyUser = getLegacyAuthUser();
+            if (
+                error.status !== 401 ||
+                !legacyUser ||
+                legacyUser.email?.toLowerCase() !== loginValue.toLowerCase() ||
+                legacyUser.password !== password
+            ) {
+                throw error;
+            }
 
+            data = await submitAuthRequest("/register", {
+                name: legacyUser.name,
+                email: legacyUser.email,
+                password: legacyUser.password
+            });
+        }
 
-    const rememberMe =
-        document.getElementById("rememberMe");
-
-
-    if (rememberMe && rememberMe.checked) {
-
-        localStorage.setItem(
-            "studysync_remember",
-            "true"
-        );
-
-    } else {
-
-        localStorage.removeItem(
-            "studysync_remember"
-        );
-
+        currentUser = data.user;
+        localStorage.removeItem(LEGACY_AUTH_USER_KEY);
+        await loadMyResult();
+        showDashboard();
+    } catch (error) {
+        alert(error instanceof Error ? error.message : "Could not log in.");
+    } finally {
+        submitButton.disabled = false;
     }
-
-
-    showDashboard();
-
 }
 
+async function submitAuthRequest(endpoint, payload) {
+    const response = await fetch(`${API_BASE}/auth${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+    });
+
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error(`The server returned an invalid response (${response.status}).`);
+    }
+
+    if (!response.ok) {
+        if (response.status === 404 || response.status === 405) {
+            const action = endpoint === "/login"
+                ? "Email/password login"
+                : "Account registration";
+            throw new Error(
+                `${action} is not enabled on the deployed backend yet. Redeploy the updated backend, or use Continue with Google.`
+            );
+        }
+
+        const error = new Error(
+            data.detail || data.message || "The request could not be completed."
+        );
+        error.status = response.status;
+        throw error;
+    }
+
+    if (!data.success || !data.user) {
+        throw new Error(data.message || "The server did not confirm the account operation.");
+    }
+
+    return data;
+}
 
 /* =========================================================
    GOOGLE LOGIN
    ========================================================= */
 
 function handleGoogleLogin() {
-    window.location.href =
-        "https://student-result-analyzer-6yst.onrender.com/auth/google";
+    window.location.href = `${API_BASE}/auth/google`;
+}
+
+
+async function fetchGoogleSession() {
+    try {
+        const response = await fetch(`${API_BASE}/me`, {
+            credentials: "include"
+        });
+        const data = await response.json();
+
+        if (!data.logged_in) return null;
+
+        currentUser = data.user;
+        return data.user;
+
+    } catch (error) {
+        console.error("Session check failed:", error);
+        return null;
+    }
+}
+
+
+async function logout() {
+    let serverLogoutFailed = false;
+
+    try {
+        const response = await fetch(`${API_BASE}/auth/logout`, {
+            method: "POST",
+            credentials: "include"
+        });
+
+        if (!response.ok) {
+            throw new Error(`Logout failed with status ${response.status}`);
+        }
+    } catch (error) {
+        console.error("Logout request failed:", error);
+        serverLogoutFailed = true;
+    }
+
+    localStorage.removeItem("studysync_logged_in");
+    localStorage.removeItem("studysync_google_user_id");
+    localStorage.removeItem("studysync_remember");
+    sessionStorage.removeItem("studysync_logged_in");
+
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+
+    if (loginForm) loginForm.reset();
+    if (registerForm) registerForm.reset();
+
+    currentUser = null;
+    showLogin();
+
+    if (serverLogoutFailed) {
+        alert("You are signed out on this device, but server sign-out could not be confirmed.");
+    }
+}
+
+
+function setupProfileMenu() {
+
+    const profileBtn = document.getElementById("profileBtn");
+    const menu = document.getElementById("profileMenu");
+    const menuLogout = document.getElementById("profileLogoutBtn");
+    const settingsLogout = document.getElementById("logoutBtn");
+
+    if (profileBtn && menu) {
+
+        profileBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            menu.classList.toggle("hidden");
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!menu.contains(event.target)) {
+                menu.classList.add("hidden");
+            }
+        });
+
+    }
+
+    if (menuLogout) menuLogout.addEventListener("click", logout);
+    if (settingsLogout) settingsLogout.addEventListener("click", logout);
+
 }
 
 
@@ -434,161 +473,90 @@ function handleGoogleLogin() {
    REGISTER
    ========================================================= */
 
-function handleRegister(event) {
-
+async function handleRegister(event) {
     event.preventDefault();
-
-
     const name =
         document.getElementById("registerName")
             .value
             .trim();
-
     const email =
         document.getElementById("registerEmail")
             .value
             .trim();
-
-    const username =
-        document.getElementById("registerUsername")
-            .value
-            .trim();
-
     const password =
         document.getElementById("registerPassword")
             .value;
-
     const confirmPassword =
         document.getElementById(
             "registerConfirmPassword"
         ).value;
 
-
     if (
         !name ||
         !email ||
-        !username ||
         !password ||
         !confirmPassword
     ) {
-
         alert(
             "Please fill all required fields."
         );
-
         return;
-
     }
 
-
     if (password.length < 6) {
-
         alert(
             "Password should contain at least 6 characters."
         );
-
         return;
-
     }
 
-
     if (password !== confirmPassword) {
-
         alert(
             "Passwords do not match."
         );
-
         return;
-
     }
-
 
     const emailPattern =
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-
     if (!emailPattern.test(email)) {
-
         alert(
             "Please enter a valid email address."
         );
-
         return;
-
     }
 
-
-    const existingUser =
-        getAuthUser();
-
-
-    if (existingUser) {
-
-        const emailExists =
-            existingUser.email.toLowerCase() ===
-            email.toLowerCase();
-
-        const usernameExists =
-            existingUser.username.toLowerCase() ===
-            username.toLowerCase();
-
-
-        if (emailExists) {
-
-            alert(
-                "An account with this email already exists."
-            );
-
-            return;
-
-        }
-
-
-        if (usernameExists) {
-
-            alert(
-                "This username is already registered."
-            );
-
-            return;
-
-        }
-
+    const submitButton = event.currentTarget.querySelector(
+        'button[type="submit"]'
+    );
+    submitButton.disabled = true;
+    try {
+        const data = await submitAuthRequest("/register", {
+            name,
+            email,
+            password
+        });
+        currentUser = data.user;
+        localStorage.removeItem(LEGACY_AUTH_USER_KEY);
+        showDashboard();
+    } catch (error) {
+        alert(error instanceof Error ? error.message : "Could not create the account.");
+    } finally {
+        submitButton.disabled = false;
     }
+}
 
+function getLegacyAuthUser() {
+    const storedUser = localStorage.getItem(LEGACY_AUTH_USER_KEY);
+    if (!storedUser) return null;
 
-    const user = {
-
-        name,
-        email,
-        username,
-        password,
-
-        createdAt:
-            new Date().toISOString()
-
-    };
-
-
-    localStorage.setItem(
-        AUTH_USER_KEY,
-        JSON.stringify(user)
-    );
-
-
-    localStorage.setItem(
-        AUTH_SESSION_KEY,
-        "true"
-    );
-
-
-    alert(
-        "Account created successfully! 🎉"
-    );
-
-
-    showDashboard();
-
+    try {
+        return JSON.parse(storedUser);
+    } catch (error) {
+        console.error("Could not read the previous local account:", error);
+        return null;
+    }
 }
 
 
@@ -606,6 +574,8 @@ function showLogin() {
 
     const registerCard =
         document.getElementById("registerCard");
+    const passwordResetCard =
+        document.getElementById("passwordResetCard");
 
 
     if (!authScreen) return;
@@ -627,6 +597,12 @@ function showLogin() {
 
     }
 
+    if (passwordResetCard) {
+
+        passwordResetCard.classList.add("hidden");
+
+    }
+
 }
 
 
@@ -640,6 +616,8 @@ function showRegister() {
 
     const registerCard =
         document.getElementById("registerCard");
+    const passwordResetCard =
+        document.getElementById("passwordResetCard");
 
 
     if (!authScreen) return;
@@ -658,6 +636,12 @@ function showRegister() {
     if (registerCard) {
 
         registerCard.classList.remove("hidden");
+
+    }
+
+    if (passwordResetCard) {
+
+        passwordResetCard.classList.add("hidden");
 
     }
 
@@ -702,82 +686,162 @@ function togglePassword(
    ========================================================= */
 
 function handleForgotPassword() {
+    const authScreen = document.getElementById("authScreen");
+    const loginCard = document.getElementById("loginCard");
+    const registerCard = document.getElementById("registerCard");
+    const passwordResetCard = document.getElementById("passwordResetCard");
+    const loginEmail = document.getElementById("loginEmail");
+    const passwordResetEmail = document.getElementById("passwordResetEmail");
+    const requestForm = document.getElementById("passwordResetRequestForm");
+    const resetForm = document.getElementById("passwordResetForm");
+    const status = document.getElementById("passwordResetStatus");
 
-    const savedUser =
-        getAuthUser();
+    if (!authScreen || !passwordResetCard) return;
 
+    authScreen.classList.remove("hidden");
+    if (loginCard) loginCard.classList.add("hidden");
+    if (registerCard) registerCard.classList.add("hidden");
+    passwordResetCard.classList.remove("hidden");
+    if (loginEmail && passwordResetEmail) {
+        const enteredEmail = loginEmail.value.trim();
+        passwordResetEmail.value =
+            enteredEmail && loginEmail.checkValidity() ? enteredEmail : "";
+    }
+    if (requestForm) requestForm.classList.remove("hidden");
+    if (resetForm) resetForm.classList.add("hidden");
+    if (status) {
+        status.textContent = "";
+        status.className = "password-reset-status";
+    }
+}
 
-    if (!savedUser) {
+function setPasswordResetStatus(message, type) {
+    const status = document.getElementById("passwordResetStatus");
+    if (!status) return;
 
-        alert(
-            "No account found. Please create an account first."
-        );
+    status.textContent = message;
+    status.className = `password-reset-status ${type}`;
+}
 
-        return;
+async function requestPasswordResetCode(email) {
+    const response = await fetch(`${API_BASE}/auth/password-reset/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email })
+    });
+    const data = await response.json();
 
+    if (!response.ok) {
+        throw new Error(data.detail || "Could not request a password reset code.");
     }
 
-
-    alert(
-        "Password recovery will be connected with the backend later. 🔐"
-    );
-
+    return data;
 }
 
+async function handlePasswordResetRequest(event) {
+    event.preventDefault();
 
-/* =========================================================
-   GOOGLE LOGIN
-   ========================================================= */
+    const email = document.getElementById("passwordResetEmail").value.trim();
+    const requestForm = event.currentTarget;
+    const submitButton = requestForm.querySelector('button[type="submit"]');
+    const resetForm = document.getElementById("passwordResetForm");
 
-function handleGoogleLogin() {
-    window.location.href =
-        "https://student-result-analyzer-6yst.onrender.com/auth/google";
+    submitButton.disabled = true;
+    try {
+        const data = await requestPasswordResetCode(email);
+        setPasswordResetStatus(
+            `${data.message} Check your inbox and spam folder. If you already requested a code, wait a minute before requesting another.`,
+            "success"
+        );
+        requestForm.classList.add("hidden");
+        resetForm.classList.remove("hidden");
+    } catch (error) {
+        setPasswordResetStatus(
+            error instanceof Error ? error.message : "Could not request a password reset code.",
+            "error"
+        );
+    } finally {
+        submitButton.disabled = false;
+    }
 }
+
+async function handlePasswordResetResend(event) {
+    const email = document.getElementById("passwordResetEmail").value.trim();
+    const resendButton = event.currentTarget;
+
+    resendButton.disabled = true;
+    try {
+        const data = await requestPasswordResetCode(email);
+        setPasswordResetStatus(
+            `${data.message} Check your inbox and spam folder. If you already requested a code, wait a minute before requesting another.`,
+            "success"
+        );
+    } catch (error) {
+        setPasswordResetStatus(
+            error instanceof Error ? error.message : "Could not request a new code.",
+            "error"
+        );
+    } finally {
+        resendButton.disabled = false;
+    }
+}
+
+async function handlePasswordResetConfirm(event) {
+    event.preventDefault();
+
+    const email = document.getElementById("passwordResetEmail").value.trim();
+    const code = document.getElementById("passwordResetCode").value.trim();
+    const newPassword = document.getElementById("passwordResetNewPassword").value;
+    const confirmPassword = document.getElementById("passwordResetConfirmPassword").value;
+    const form = event.currentTarget;
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    if (newPassword !== confirmPassword) {
+        setPasswordResetStatus("The passwords do not match.", "error");
+        return;
+    }
+
+    submitButton.disabled = true;
+    try {
+        const response = await fetch(`${API_BASE}/auth/password-reset/confirm`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+                email,
+                code,
+                new_password: newPassword
+            })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Could not reset your password.");
+        }
+
+        form.reset();
+        form.classList.add("hidden");
+        document.getElementById("passwordResetRequestForm").classList.add("hidden");
+        setPasswordResetStatus(
+            `${data.message} You can now sign in with your new password.`,
+            "success"
+        );
+    } catch (error) {
+        setPasswordResetStatus(
+            error instanceof Error ? error.message : "Could not reset your password.",
+            "error"
+        );
+    } finally {
+        submitButton.disabled = false;
+    }
+}
+
 
 
 /* =========================================================
    AUTH HELPERS
    ========================================================= */
-
-function getAuthUser() {
-
-    const data =
-        localStorage.getItem(
-            AUTH_USER_KEY
-        );
-
-
-    if (!data) return null;
-
-
-    try {
-
-        return JSON.parse(data);
-
-    } catch (error) {
-
-        console.error(
-            "Could not read user:",
-            error
-        );
-
-        return null;
-
-    }
-
-}
-
-
-function isLoggedIn() {
-
-    return (
-        localStorage.getItem(
-            AUTH_SESSION_KEY
-        ) === "true"
-    );
-
-}
-
 
 /* =========================================================
    SHOW / HIDE DASHBOARD
@@ -801,18 +865,6 @@ function showDashboard() {
 }
 
 
-function logout() {
-
-    localStorage.removeItem(
-        AUTH_SESSION_KEY
-    );
-
-
-    showLogin();
-
-}
-
-
 /* =========================================================
    APPLICATION INITIALIZATION
    ========================================================= */
@@ -820,32 +872,47 @@ function logout() {
 function initializeApplication() {
 
     loadData();
-
     loadTasks();
-
-    setupNavigation();
-
-    setupResultSystem();
-
-    setupTaskSystem();
-
-    setupPlanner();
-
-    setupSettings();
-
     renderSubjects();
-
     renderTasks();
-
     updateDashboard();
-
     updateAnalytics();
-
     updateRewards();
-
     loadPlannerSettings();
-
     updateProfileUI();
+}
+
+/* =========================================================
+   iOS SPECULAR GLASS SHEEN
+   ========================================================= */
+
+function setupIOSGlassSheen() {
+
+    const glassTargets = document.querySelectorAll(
+        ".stat-card, .panel, .form-panel, .auth-card, .reward-card"
+    );
+
+    glassTargets.forEach((card) => {
+
+        card.addEventListener("pointermove", (event) => {
+            const rect = card.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 100;
+            const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+            card.style.background = `
+                radial-gradient(
+                    circle at ${x}% ${y}%,
+                    rgba(255, 255, 255, 0.14),
+                    rgba(255, 255, 255, 0.05) 55%
+                )
+            `;
+        });
+
+        card.addEventListener("pointerleave", () => {
+            card.style.background = "";
+        });
+
+    });
 
 }
 
@@ -1036,38 +1103,14 @@ function setupNavigation() {
                 );
 
 
-                if (
-                    sectionName ===
-                    "analytics"
-                ) {
-
+                if (sectionName === "analytics") {
                     updateAnalytics();
-
-                }
-
-
-                if (
-                    sectionName ===
-                    "dashboard"
-                ) {
-
+                } else if (sectionName === "dashboard") {
                     updateDashboard();
-
-                }
-
-
-                if (
-                    sectionName ===
-                    "rewards"
-                ) 
-                
-                
-                if (sectionName === "tasks") {
+                } else if (sectionName === "tasks") {
                     loadTasks();
-                } {
-
+                } else if (sectionName === "rewards") {
                     updateRewards();
-
                 }
 
             }
@@ -1075,6 +1118,28 @@ function setupNavigation() {
 
     });
 
+}
+
+
+function openTasksForDate(date) {
+    const taskDate = document.getElementById("taskDate");
+    const taskName = document.getElementById("taskName");
+    const tasksNavItem = document.querySelector(
+        '.nav-item[data-section="tasks"]'
+    );
+
+    if (taskDate) {
+        taskDate.value = date;
+    }
+
+    if (tasksNavItem) {
+        tasksNavItem.click();
+    }
+
+    if (taskName) {
+        taskName.scrollIntoView({ behavior: "smooth", block: "center" });
+        taskName.focus({ preventScroll: true });
+    }
 }
 
 
@@ -1812,16 +1877,13 @@ async function saveTask() {
     try {
 
         const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
+            `${API_BASE}/tasks`,
             {
                 method: "POST",
                 credentials: "include",
-            
                 headers: {
-                    "Content-Type": "application/json",
-                    "X-User-ID": localStorage.getItem("studysync_google_user_id")
+                    "Content-Type": "application/json"
                 },
-            
                 body: JSON.stringify({
                     title: name,
                     subject_name: subject,
@@ -1888,7 +1950,7 @@ async function loadTasks() {
     try {
 
         const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
+            `${API_BASE}/tasks`,
             {
                 method: "GET",
                 credentials: "include"
@@ -1899,13 +1961,12 @@ async function loadTasks() {
 
         console.log("Tasks from backend:", data);
 
-        if (!data.logged_in) {
-            console.log("User is not logged in.");
-            return;
-        }
-
-        if (!data.tasks) {
+        if (!data.logged_in || !Array.isArray(data.tasks)) {
             tasks = [];
+            renderTasks();
+            updateDashboard();
+            updateAnalytics();
+            updateRewards();
             return;
         }
 
@@ -1928,6 +1989,7 @@ async function loadTasks() {
         renderTasks();
         updateDashboard();
         updateAnalytics();
+        updateRewards();
 
     } catch (error) {
 
@@ -2234,7 +2296,7 @@ async function toggleTask(id, completed) {
         if (completed) {
 
             const response = await fetch(
-                `https://student-result-analyzer-6yst.onrender.com/tasks/${id}/complete`,
+                `${API_BASE}/tasks/${id}/complete`,
                 {
                     method: "PUT",
                     credentials: "include"
@@ -2298,7 +2360,7 @@ async function deleteTask(id) {
     try {
 
         const response = await fetch(
-            `https://student-result-analyzer-6yst.onrender.com/tasks/${id}`,
+            `${API_BASE}/tasks/${id}`,
             {
                 method: "DELETE",
                 credentials: "include"
@@ -2442,35 +2504,16 @@ function updateDashboard() {
         );
 
 
-        const topName =
-            document.getElementById(
-                "topStudentName"
-            );
-
-
-        if (topName) {
-
-            topName.textContent =
-                result.studentName ||
-                "Student";
-
-        }
-
     } else {
-
         document.getElementById(
             "dashAverage"
         ).textContent =
             "--";
-
-
         document.getElementById(
             "dashGrade"
         ).textContent =
             "--";
-
     }
-
 
     const completed =
         tasks.filter(
@@ -2693,56 +2736,33 @@ function getCompletedDates() {
     const dates =
         new Set();
 
-
     tasks.forEach(
         task => {
+            const completedDate = getTaskCompletionDate(task);
 
-            if (!task.completed)
-                return;
-
-
-            if (task.completedAt) {
-
-                const date =
-                    new Date(
-                        task.completedAt
-                    );
-
-
-                if (
-                    !Number.isNaN(
-                        date.getTime()
-                    )
-                ) {
-
-                    dates.add(
-                        `${date.getFullYear()}-${
-                            String(
-                                date.getMonth() + 1
-                            ).padStart(2, "0")
-                        }-${
-                            String(
-                                date.getDate()
-                            ).padStart(2, "0")
-                        }`
-                    );
-
-                }
-
-            } else if (task.date) {
-
-                dates.add(
-                    task.date
-                );
-
+            if (completedDate) {
+                dates.add(completedDate);
             }
-
         }
     );
 
-
     return dates;
 
+}
+
+
+function getTaskCompletionDate(task) {
+    if (!task.completed) return null;
+
+    if (task.completedAt) {
+        const completedAt = new Date(task.completedAt);
+
+        if (!Number.isNaN(completedAt.getTime())) {
+            return formatLocalDate(completedAt);
+        }
+    }
+
+    return task.date || null;
 }
 
 
@@ -2993,6 +3013,239 @@ function updateStreakUI() {
 
     }
 
+}
+
+
+function setupActivityCalendar() {
+    const modal = document.getElementById("activityCalendarModal");
+    const closeButton = document.getElementById("closeActivityCalendarBtn");
+    const previousButton = document.getElementById("previousCalendarMonthBtn");
+    const nextButton = document.getElementById("nextCalendarMonthBtn");
+    const daysContainer = document.getElementById("activityCalendarDays");
+    const addTaskButton = document.getElementById("calendarAddTaskBtn");
+    const dashboardAddTaskButton = document.getElementById("dashboardAddTaskBtn");
+    const currentStreakButton = document.getElementById("currentStreakCalendarBtn");
+    const todayStatusButton = document.getElementById("todayStatusCalendarBtn");
+
+    if (!modal) return;
+
+    currentStreakButton?.addEventListener("click", event => {
+        openActivityCalendar(getLocalDateString(), event.currentTarget, "streak");
+    });
+    todayStatusButton?.addEventListener("click", event => {
+        openActivityCalendar(getLocalDateString(), event.currentTarget, "tasks");
+    });
+    dashboardAddTaskButton?.addEventListener("click", () => {
+        openTasksForDate(getLocalDateString());
+    });
+    closeButton?.addEventListener("click", closeActivityCalendar);
+    previousButton?.addEventListener("click", () => {
+        shiftActivityCalendarMonth(-1);
+    });
+    nextButton?.addEventListener("click", () => {
+        shiftActivityCalendarMonth(1);
+    });
+    daysContainer?.addEventListener("click", event => {
+        const dayButton = event.target.closest("[data-calendar-date]");
+        if (!dayButton) return;
+
+        activityCalendarSelectedDate = dayButton.dataset.calendarDate;
+        renderActivityCalendar();
+    });
+    addTaskButton?.addEventListener("click", () => {
+        closeActivityCalendar();
+        openTasksForDate(activityCalendarSelectedDate);
+    });
+    modal.addEventListener("click", event => {
+        if (event.target === modal) {
+            closeActivityCalendar();
+        }
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+            closeActivityCalendar();
+        }
+    });
+}
+
+
+function shiftActivityCalendarMonth(amount) {
+    const year = activityCalendarMonth.getFullYear();
+    const month = activityCalendarMonth.getMonth() + amount;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const selectedDay = Number(activityCalendarSelectedDate.slice(-2));
+
+    activityCalendarMonth = new Date(year, month, 1);
+    activityCalendarSelectedDate = formatLocalDate(
+        new Date(year, month, Math.min(selectedDay, daysInMonth))
+    );
+    renderActivityCalendar();
+}
+
+
+let activityCalendarSelectedDate = "";
+let activityCalendarMonth = new Date();
+let activityCalendarReturnFocus = null;
+let activityCalendarMode = "tasks";
+
+
+function openActivityCalendar(date, trigger, mode) {
+    const modal = document.getElementById("activityCalendarModal");
+    if (!modal) return;
+
+    activityCalendarSelectedDate = date;
+    activityCalendarMonth = new Date(`${date}T00:00:00`);
+    activityCalendarMode = mode;
+    activityCalendarReturnFocus = trigger || document.activeElement;
+    document.getElementById("activityCalendarTitle").textContent =
+        mode === "streak" ? "Current streak calendar" : "Task status calendar";
+    document.querySelector(".calendar-summary").textContent =
+        mode === "streak"
+            ? "🔥 marks each day you completed a task and kept your streak active."
+            : "Select a date to see its scheduled tasks and completion status.";
+    document.getElementById("calendarAddTaskBtn").classList.toggle(
+        "hidden",
+        mode === "streak"
+    );
+    renderActivityCalendar();
+    modal.classList.remove("hidden");
+    document.getElementById("closeActivityCalendarBtn")?.focus();
+}
+
+
+function closeActivityCalendar() {
+    const modal = document.getElementById("activityCalendarModal");
+    if (!modal) return;
+
+    modal.classList.add("hidden");
+    activityCalendarReturnFocus?.focus();
+    activityCalendarReturnFocus = null;
+}
+
+
+function renderActivityCalendar() {
+    const monthHeading = document.getElementById("activityCalendarMonth");
+    const daysContainer = document.getElementById("activityCalendarDays");
+    if (!monthHeading || !daysContainer) return;
+
+    const year = activityCalendarMonth.getFullYear();
+    const month = activityCalendarMonth.getMonth();
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const activeDates = getCompletedDates();
+
+    monthHeading.textContent = activityCalendarMonth.toLocaleDateString(
+        undefined,
+        { month: "long", year: "numeric" }
+    );
+    daysContainer.innerHTML = "";
+
+    for (let blank = 0; blank < firstWeekday; blank++) {
+        const emptyCell = document.createElement("span");
+        emptyCell.className = "calendar-day-empty";
+        emptyCell.setAttribute("aria-hidden", "true");
+        daysContainer.appendChild(emptyCell);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = formatLocalDate(new Date(year, month, day));
+        const scheduledTasks = tasks.filter(task => task.date === date);
+        const hasStreak = activityCalendarMode === "streak" && activeDates.has(date);
+        const hasCompletedTask =
+            activityCalendarMode === "tasks" &&
+            scheduledTasks.some(task => task.completed);
+        const isToday = date === getLocalDateString();
+        const isSelected = date === activityCalendarSelectedDate;
+        const dayButton = document.createElement("button");
+
+        dayButton.type = "button";
+        dayButton.className = "calendar-day";
+        dayButton.dataset.calendarDate = date;
+        dayButton.setAttribute(
+            "aria-label",
+            `${new Date(year, month, day).toLocaleDateString()}${
+                activityCalendarMode === "tasks" && scheduledTasks.length
+                    ? `, ${scheduledTasks.length} scheduled task${scheduledTasks.length === 1 ? "" : "s"}`
+                    : ""
+            }${hasStreak ? ", streak day" : ""}`
+        );
+        dayButton.setAttribute("aria-pressed", String(isSelected));
+
+        if (activityCalendarMode === "tasks" && scheduledTasks.length) {
+            dayButton.classList.add("has-tasks");
+        }
+        if (hasCompletedTask) dayButton.classList.add("has-completed-tasks");
+        if (hasStreak) dayButton.classList.add("streak-day");
+        if (isToday) dayButton.classList.add("today");
+        if (isSelected) dayButton.classList.add("selected");
+
+        dayButton.innerHTML = `
+            <span class="calendar-day-number">${day}</span>
+            <span class="calendar-day-indicator">${
+                hasStreak ? "🔥" : hasCompletedTask ? "✓" : scheduledTasks.length && activityCalendarMode === "tasks" ? "•" : ""
+            }</span>
+        `;
+        dayButton.addEventListener("click", () => {
+            activityCalendarSelectedDate = date;
+            renderActivityCalendar();
+        });
+        daysContainer.appendChild(dayButton);
+    }
+
+    renderCalendarDayDetails(activityCalendarSelectedDate);
+}
+
+
+function renderCalendarDayDetails(date) {
+    const selectedDateHeading = document.getElementById("calendarSelectedDate");
+    const tasksContainer = document.getElementById("calendarTasksForDate");
+    if (!selectedDateHeading || !tasksContainer) return;
+
+    const dateObject = new Date(`${date}T00:00:00`);
+    selectedDateHeading.textContent = dateObject.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+    });
+
+    if (activityCalendarMode === "streak") {
+        tasksContainer.innerHTML = getCompletedDates().has(date)
+            ? '<p class="calendar-day-empty">🔥 Streak activity recorded for this day.</p>'
+            : '<p class="calendar-day-empty">No streak activity recorded for this day.</p>';
+        return;
+    }
+
+    const dayTasks = tasks
+        .filter(task => task.date === date)
+        .sort((first, second) =>
+            (first.startTime || "").localeCompare(second.startTime || "")
+        );
+
+    if (!dayTasks.length) {
+        tasksContainer.innerHTML =
+            '<p class="calendar-day-empty">No tasks scheduled for this day.</p>';
+        return;
+    }
+
+    tasksContainer.innerHTML = dayTasks.map(task => {
+        const status = task.completed ? "Completed" : "Scheduled";
+        const time = task.startTime
+            ? `${task.startTime}${task.endTime ? ` - ${task.endTime}` : ""}`
+            : "No time set";
+
+        return `
+            <div class="calendar-task-row">
+                <div class="calendar-task-info">
+                    <strong>${escapeHTML(task.name)}</strong>
+                    <small>${escapeHTML(task.subject || "General")} · ${escapeHTML(time)}</small>
+                </div>
+                <span class="calendar-task-status ${task.completed ? "complete" : ""}">
+                    ${status}
+                </span>
+            </div>
+        `;
+    }).join("");
 }
 
 
@@ -4634,52 +4887,20 @@ function updateRewards() {
 
 function updateProfileUI() {
 
-    const user =
-        getAuthUser();
-
-
-    if (!user) return;
-
-
-    const result =
-        getSavedResult();
-
-
     const name =
-        result?.studentName ||
-        user.name ||
-        user.username ||
+        currentUser?.name ||
         "Student";
 
+    const email =
+        currentUser?.email ||
+        "";
 
-    const topStudentName =
-        document.getElementById(
-            "topStudentName"
-        );
+    document.getElementById("topStudentName").textContent = name;
+    document.getElementById("profileMenuName").textContent = name;
+    document.getElementById("profileMenuEmail").textContent = email;
 
-
-    if (topStudentName) {
-
-        topStudentName.textContent =
-            name;
-
-    }
-
-
-    const avatar =
-        document.querySelector(
-            ".avatar"
-        );
-
-
-    if (avatar) {
-
-        avatar.textContent =
-            name
-                .charAt(0)
-                .toUpperCase();
-
-    }
+    document.querySelector(".avatar").textContent =
+        name.charAt(0).toUpperCase();
 
 }
 
@@ -4863,103 +5084,5 @@ function escapeHTML(value) {
             "'",
             "&#039;"
         );
-
-}
-
-async function createTestTask() {
-    try {
-        const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
-            {
-                method: "POST",
-                credentials: "include"
-            }
-        );
-
-        const data = await response.json();
-
-        console.log("Create Task:", data);
-
-    } catch (error) {
-        console.error("Failed to create task:", error);
-    }
-}
-
-async function loadTasks() {
-
-    try {
-
-        const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
-            {
-                method: "GET",
-                credentials: "include"
-            }
-        );
-
-        const data = await response.json();
-
-        console.log("Tasks from backend:", data);
-
-        if (!data.logged_in) {
-
-            console.log("User is not logged in.");
-
-            tasks = [];
-
-            return;
-        }
-
-        if (!Array.isArray(data.tasks)) {
-
-            tasks = [];
-
-            return;
-        }
-
-        tasks = data.tasks.map(task => ({
-
-            id: task.task_id,
-
-            name: task.title,
-
-            subject: task.subject || "",
-
-            date: task.task_date || "",
-
-            startTime: task.start_time || "",
-
-            endTime: task.end_time || "",
-
-            priority: task.priority || "Medium",
-
-            repeat: task.repeat_type || "Once",
-
-            completed: Boolean(task.is_completed),
-
-            completedAt: task.completed_at || null,
-
-            createdAt: task.created_at
-
-        }));
-
-        console.log("Frontend tasks:", tasks);
-
-        renderTasks();
-
-        updateDashboard();
-
-        updateAnalytics();
-
-        updateRewards();
-
-    } catch (error) {
-
-        console.error(
-            "Failed to load tasks:",
-            error
-        );
-
-    }
 
 }
