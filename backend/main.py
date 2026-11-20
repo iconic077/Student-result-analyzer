@@ -13,7 +13,8 @@ import os
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
-
+from auth_extra import router as auth_extra_router
+from students_crud import router as students_crud_router
 
 load_dotenv()
 
@@ -1096,6 +1097,15 @@ def google_callback(
     return RedirectResponse(
     url=f"/index.html?google_login=success&user_id={user_id}"
 )
+
+@app.post("/auth/logout")
+def logout(request: Request):
+    request.session.clear()
+    return {"success": True, "message": "Logged out"}
+
+
+app.include_router(auth_extra_router)
+app.include_router(students_crud_router)
 
 # Serve frontend from the same Render origin
 FRONTEND_DIR = Path(__file__).resolve().parent.parent / "frontend"
