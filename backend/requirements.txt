@@ -1,5 +1,6 @@
 
 fastapi
+email-validator
 uvicorn[standard]
 mysql-connector-python
 python-dotenv
