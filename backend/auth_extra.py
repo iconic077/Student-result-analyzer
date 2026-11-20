@@ -3,16 +3,11 @@ auth_extra.py
 =========================================================
 Real email/password REGISTER and LOGIN routes.
 Separate from the existing Google OAuth login in main.py —
-this gives the frontend's email/password form (currently
-fake/localStorage-only) a real backend to talk to.
-
-Add to main.py:
-    from auth_extra import router as auth_extra_router
-    app.include_router(auth_extra_router)
+these routes also create the session used by the app's task APIs.
 =========================================================
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from pydantic import BaseModel, EmailStr
 
 from security import hash_password, verify_password, create_access_token
@@ -46,6 +41,32 @@ def get_db_connection():
         password=os.getenv("DB_PASSWORD"),
         database=os.getenv("DB_NAME")
     )
+
+
+def _ensure_student_profile(cursor, user_id, name):
+    cursor.execute(
+        "SELECT student_id FROM users WHERE user_id = %s",
+        (user_id,)
+    )
+    user = cursor.fetchone()
+    if user is None:
+        raise HTTPException(status_code=404, detail="Account not found")
+    if user["student_id"] is not None:
+        return user["student_id"]
+
+    cursor.execute(
+        """
+        INSERT INTO students (roll_no, name)
+        VALUES (%s, %s)
+        """,
+        (f"SS-{user_id}", name or f"StudySync Student {user_id}")
+    )
+    student_id = cursor.lastrowid
+    cursor.execute(
+        "UPDATE users SET student_id = %s WHERE user_id = %s",
+        (student_id, user_id)
+    )
+    return student_id
 
 
 # =========================================================
@@ -148,16 +169,23 @@ def _hash_reset_code(email, code):
 # =========================================================
 
 @router.post("/register")
-def register(data: RegisterRequest):
+def register(data: RegisterRequest, request: Request):
 
-    if data.role not in ("student", "teacher", "admin"):
-        raise HTTPException(status_code=400, detail="Invalid role")
+    if data.role != "student":
+        raise HTTPException(
+            status_code=403,
+            detail="Only student accounts can be created through public registration"
+        )
 
     if len(data.password) < 6:
         raise HTTPException(
             status_code=400,
             detail="Password must be at least 6 characters long"
         )
+
+    name = data.name.strip()
+    if not name:
+        raise HTTPException(status_code=400, detail="Name is required")
 
     email = str(data.email).strip().lower()
     conn = get_db_connection()
@@ -182,16 +210,33 @@ def register(data: RegisterRequest):
             INSERT INTO users (name, email, password, role)
             VALUES (%s, %s, %s, %s)
             """,
-            (data.name, email, hashed, data.role)
+            (name, email, hashed, data.role)
         )
 
-        conn.commit()
         user_id = cursor.lastrowid
+        _ensure_student_profile(cursor, user_id, name)
+        conn.commit()
+
+        token = create_access_token(
+            user_id=user_id,
+            role=data.role,
+            name=name
+        )
+        request.session.clear()
+        request.session["user_id"] = user_id
+        request.session["user_name"] = name
+        request.session["user_email"] = email
 
         return {
             "success": True,
             "user_id": user_id,
-            "role": data.role
+            "token": token,
+            "user": {
+                "id": user_id,
+                "name": name,
+                "email": email,
+                "role": data.role
+            }
         }
 
     finally:
@@ -204,7 +249,7 @@ def register(data: RegisterRequest):
 # =========================================================
 
 @router.post("/login")
-def login(data: LoginRequest):
+def login(data: LoginRequest, request: Request):
     email = str(data.email).strip().lower()
 
     conn = get_db_connection()
@@ -240,12 +285,26 @@ def login(data: LoginRequest):
             name=user["name"]
         )
 
+        if (user["role"] or "student") == "student":
+            _ensure_student_profile(
+                cursor,
+                user["user_id"],
+                user["name"]
+            )
+            conn.commit()
+
+        request.session.clear()
+        request.session["user_id"] = user["user_id"]
+        request.session["user_name"] = user["name"]
+        request.session["user_email"] = user["email"]
+
         return {
             "success": True,
             "token": token,
             "user": {
                 "id": user["user_id"],
                 "name": user["name"],
+                "email": user["email"],
                 "role": user["role"] or "student"
             }
         }
