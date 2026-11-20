@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <title>StudySync - Student Performance Analyzer</title>
+    <title>StudySync - Student Result Analyzer</title>
 
     <link rel="stylesheet" href="css/style.css?v=8">
 </head>
@@ -577,7 +577,12 @@
             <!-- ================= STREAK ================= -->
 
             <div class="streak-grid">
-                <div class="streak-card streak-current">
+                <button
+                    type="button"
+                    class="streak-card streak-current calendar-trigger"
+                    id="currentStreakCalendarBtn"
+                    aria-label="View activity calendar and current streak"
+                >
                     <div class="streak-card-icon">
                         🔥
                     </div>
@@ -591,8 +596,11 @@
                         <small>
                             days
                         </small>
+                        <small class="streak-card-action">
+                            View streak calendar
+                        </small>
                     </div>
-                </div>
+                </button>
 
                 <div class="streak-card streak-longest">
                     <div class="streak-card-icon">
@@ -611,7 +619,12 @@
                     </div>
                 </div>
 
-                <div class="streak-card streak-today">
+                <button
+                    type="button"
+                    class="streak-card streak-today calendar-trigger"
+                    id="todayStatusCalendarBtn"
+                    aria-label="View today's task status in the activity calendar"
+                >
                     <div class="streak-card-icon">
                         📅
                     </div>
@@ -623,10 +636,10 @@
                             Not Started
                         </strong>
                         <small>
-                            Complete a task to continue
+                            Open task calendar
                         </small>
                     </div>
-                </div>
+                </button>
             </div>
 
             <!-- ================= DASHBOARD GRID ================= -->
@@ -674,6 +687,13 @@
                                 Your study goals
                             </p>
                         </div>
+                        <button
+                            type="button"
+                            class="btn secondary dashboard-task-action"
+                            id="dashboardAddTaskBtn"
+                        >
+                            + Add / schedule task
+                        </button>
                     </div>
 
                     <div
@@ -2285,7 +2305,84 @@
 </div>
 
 
-<script src="js/app.js?v=12"></script>
+<div class="calendar-modal hidden" id="activityCalendarModal">
+    <section
+        class="calendar-dialog"
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="activityCalendarTitle"
+    >
+        <div class="calendar-modal-header">
+            <div>
+                <span class="eyebrow">TASK HISTORY</span>
+                <h2 id="activityCalendarTitle">Activity calendar</h2>
+            </div>
+            <button
+                type="button"
+                class="calendar-close-btn"
+                id="closeActivityCalendarBtn"
+                aria-label="Close activity calendar"
+            >
+                ×
+            </button>
+        </div>
+
+        <p class="calendar-summary">
+            🔥 marks a day when you completed a task; • marks a scheduled task. Select a day to see its status.
+        </p>
+
+        <div class="calendar-month-controls">
+            <button
+                type="button"
+                class="calendar-month-btn"
+                id="previousCalendarMonthBtn"
+                aria-label="Previous month"
+            >
+                ‹
+            </button>
+            <h3 id="activityCalendarMonth"></h3>
+            <button
+                type="button"
+                class="calendar-month-btn"
+                id="nextCalendarMonthBtn"
+                aria-label="Next month"
+            >
+                ›
+            </button>
+        </div>
+
+        <div class="activity-calendar-weekdays" aria-hidden="true">
+            <span>Sun</span>
+            <span>Mon</span>
+            <span>Tue</span>
+            <span>Wed</span>
+            <span>Thu</span>
+            <span>Fri</span>
+            <span>Sat</span>
+        </div>
+        <div
+            class="activity-calendar-days"
+            id="activityCalendarDays"
+            role="group"
+            aria-label="Days in the selected month"
+        ></div>
+
+        <section class="calendar-day-detail" aria-live="polite">
+            <h3 id="calendarSelectedDate"></h3>
+            <div id="calendarTasksForDate"></div>
+        </section>
+
+        <button
+            type="button"
+            class="btn primary full calendar-add-task-btn"
+            id="calendarAddTaskBtn"
+        >
+            + Add a task for this day
+        </button>
+    </section>
+</div>
+
+<script src="js/app.js?v=13"></script>
 
 </body>
 </html>
