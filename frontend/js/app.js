@@ -13,7 +13,6 @@ const XP_KEY = "studysync_xp";
 const PLANNER_KEY = "studysync_planner";
 
 const AUTH_USER_KEY = "studysync_user";
-const AUTH_SESSION_KEY = "studysync_logged_in";
 
 
 const XP_BY_PRIORITY = {
@@ -51,21 +50,25 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupIOSGlassSheen();
 
     const params = new URLSearchParams(window.location.search);
+    const googleLoginCompleted =
+        params.get("google_login") === "success" && params.get("user_id");
 
-    if (params.get("google_login") === "success" && params.get("user_id")) {
-        localStorage.setItem(AUTH_SESSION_KEY, "true");
+    if (googleLoginCompleted) {
         localStorage.setItem("studysync_google_user_id", params.get("user_id"));
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    const googleUser = await fetchGoogleSession();
+    const googleUser = googleLoginCompleted
+        ? await fetchGoogleSession()
+        : null;
 
     if (googleUser) {
         await loadMyResult();
         showDashboard();
-    } else if (isLoggedIn()) {
-        showDashboard();
     } else {
+        localStorage.removeItem("studysync_google_user_id");
+        localStorage.removeItem("studysync_logged_in");
+        sessionStorage.removeItem("studysync_logged_in");
         showLogin();
     }
 
@@ -97,6 +100,14 @@ function setupAuth() {
         );
     const forgotPasswordBtn =
         document.getElementById("forgotPasswordBtn");
+    const passwordResetRequestForm =
+        document.getElementById("passwordResetRequestForm");
+    const passwordResetForm =
+        document.getElementById("passwordResetForm");
+    const resendPasswordResetCodeBtn =
+        document.getElementById("resendPasswordResetCodeBtn");
+    const backToLoginBtn =
+        document.getElementById("backToLoginBtn");
     const googleLoginBtn =
         document.getElementById("googleLoginBtn");
 
@@ -164,6 +175,31 @@ function setupAuth() {
             "click",
             handleForgotPassword
         );
+    }
+
+    if (passwordResetRequestForm) {
+        passwordResetRequestForm.addEventListener(
+            "submit",
+            handlePasswordResetRequest
+        );
+    }
+
+    if (passwordResetForm) {
+        passwordResetForm.addEventListener(
+            "submit",
+            handlePasswordResetConfirm
+        );
+    }
+
+    if (resendPasswordResetCodeBtn) {
+        resendPasswordResetCodeBtn.addEventListener(
+            "click",
+            handlePasswordResetResend
+        );
+    }
+
+    if (backToLoginBtn) {
+        backToLoginBtn.addEventListener("click", showLogin);
     }
 
     if (googleLoginBtn) {
@@ -285,12 +321,17 @@ function handleLogin(event) {
     }
 
 
+    const savedEmail =
+        typeof savedUser.email === "string"
+            ? savedUser.email.toLowerCase()
+            : "";
+    const savedUsername =
+        typeof savedUser.username === "string"
+            ? savedUser.username.toLowerCase()
+            : "";
     const identifierMatches =
-        loginValue.toLowerCase() ===
-            savedUser.email.toLowerCase()
-        ||
-        loginValue.toLowerCase() ===
-            savedUser.username.toLowerCase();
+        loginValue.toLowerCase() === savedEmail ||
+        (savedUsername && loginValue.toLowerCase() === savedUsername);
 
 
     if (!identifierMatches) {
@@ -310,16 +351,6 @@ function handleLogin(event) {
         );
         return;
     }
-
-const rememberMe = document.getElementById("rememberMe");
-const sessionStore = rememberMe && rememberMe.checked ? localStorage : sessionStorage;
-sessionStore.setItem(AUTH_SESSION_KEY, "true");
-
-if (rememberMe && rememberMe.checked) {
-    localStorage.setItem("studysync_remember", "true");
-} else {
-    localStorage.removeItem("studysync_remember");
-}
 
 showDashboard();
 }
@@ -354,20 +385,39 @@ async function fetchGoogleSession() {
 
 
 async function logout() {
+    let serverLogoutFailed = false;
+
     try {
-        await fetch(`${API_BASE}/auth/logout`, {
+        const response = await fetch(`${API_BASE}/auth/logout`, {
             method: "POST",
             credentials: "include"
         });
+
+        if (!response.ok) {
+            throw new Error(`Logout failed with status ${response.status}`);
+        }
     } catch (error) {
         console.error("Logout request failed:", error);
+        serverLogoutFailed = true;
     }
 
-    localStorage.removeItem(AUTH_SESSION_KEY);
+    localStorage.removeItem("studysync_logged_in");
     localStorage.removeItem("studysync_google_user_id");
+    localStorage.removeItem("studysync_remember");
+    sessionStorage.removeItem("studysync_logged_in");
+
+    const loginForm = document.getElementById("loginForm");
+    const registerForm = document.getElementById("registerForm");
+
+    if (loginForm) loginForm.reset();
+    if (registerForm) registerForm.reset();
 
     currentUser = null;
-    location.reload();
+    showLogin();
+
+    if (serverLogoutFailed) {
+        alert("You are signed out on this device, but server sign-out could not be confirmed.");
+    }
 }
 
 
@@ -418,10 +468,10 @@ function handleRegister(event) {
             .value
             .trim();
 
+    const usernameInput =
+        document.getElementById("registerUsername");
     const username =
-        document.getElementById("registerUsername")
-            .value
-            .trim();
+        usernameInput ? usernameInput.value.trim() : "";
 
     const password =
         document.getElementById("registerPassword")
@@ -436,7 +486,6 @@ function handleRegister(event) {
     if (
         !name ||
         !email ||
-        !username ||
         !password ||
         !confirmPassword
     ) {
@@ -498,8 +547,9 @@ function handleRegister(event) {
             email.toLowerCase();
 
         const usernameExists =
-            existingUser.username.toLowerCase() ===
-            username.toLowerCase();
+            username &&
+            typeof existingUser.username === "string" &&
+            existingUser.username.toLowerCase() === username.toLowerCase();
 
 
         if (emailExists) {
@@ -527,27 +577,21 @@ function handleRegister(event) {
 
 
     const user = {
-
         name,
         email,
-        username,
         password,
-
         createdAt:
             new Date().toISOString()
-
     };
+
+    if (username) {
+        user.username = username;
+    }
 
 
     localStorage.setItem(
         AUTH_USER_KEY,
         JSON.stringify(user)
-    );
-
-
-    localStorage.setItem(
-        AUTH_SESSION_KEY,
-        "true"
     );
 
 
@@ -575,6 +619,8 @@ function showLogin() {
 
     const registerCard =
         document.getElementById("registerCard");
+    const passwordResetCard =
+        document.getElementById("passwordResetCard");
 
 
     if (!authScreen) return;
@@ -596,6 +642,12 @@ function showLogin() {
 
     }
 
+    if (passwordResetCard) {
+
+        passwordResetCard.classList.add("hidden");
+
+    }
+
 }
 
 
@@ -609,6 +661,8 @@ function showRegister() {
 
     const registerCard =
         document.getElementById("registerCard");
+    const passwordResetCard =
+        document.getElementById("passwordResetCard");
 
 
     if (!authScreen) return;
@@ -627,6 +681,12 @@ function showRegister() {
     if (registerCard) {
 
         registerCard.classList.remove("hidden");
+
+    }
+
+    if (passwordResetCard) {
+
+        passwordResetCard.classList.add("hidden");
 
     }
 
@@ -671,26 +731,155 @@ function togglePassword(
    ========================================================= */
 
 function handleForgotPassword() {
+    const authScreen = document.getElementById("authScreen");
+    const loginCard = document.getElementById("loginCard");
+    const registerCard = document.getElementById("registerCard");
+    const passwordResetCard = document.getElementById("passwordResetCard");
+    const loginEmail = document.getElementById("loginEmail");
+    const passwordResetEmail = document.getElementById("passwordResetEmail");
+    const requestForm = document.getElementById("passwordResetRequestForm");
+    const resetForm = document.getElementById("passwordResetForm");
+    const status = document.getElementById("passwordResetStatus");
 
-    const savedUser =
-        getAuthUser();
+    if (!authScreen || !passwordResetCard) return;
 
+    authScreen.classList.remove("hidden");
+    if (loginCard) loginCard.classList.add("hidden");
+    if (registerCard) registerCard.classList.add("hidden");
+    passwordResetCard.classList.remove("hidden");
+    if (loginEmail && passwordResetEmail) {
+        const enteredEmail = loginEmail.value.trim();
+        passwordResetEmail.value =
+            enteredEmail && loginEmail.checkValidity() ? enteredEmail : "";
+    }
+    if (requestForm) requestForm.classList.remove("hidden");
+    if (resetForm) resetForm.classList.add("hidden");
+    if (status) {
+        status.textContent = "";
+        status.className = "password-reset-status";
+    }
+}
 
-    if (!savedUser) {
+function setPasswordResetStatus(message, type) {
+    const status = document.getElementById("passwordResetStatus");
+    if (!status) return;
 
-        alert(
-            "No account found. Please create an account first."
-        );
+    status.textContent = message;
+    status.className = `password-reset-status ${type}`;
+}
 
-        return;
+async function requestPasswordResetCode(email) {
+    const response = await fetch(`${API_BASE}/auth/password-reset/request`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email })
+    });
+    const data = await response.json();
 
+    if (!response.ok) {
+        throw new Error(data.detail || "Could not request a password reset code.");
     }
 
+    return data;
+}
 
-    alert(
-        "Password recovery will be connected with the backend later. 🔐"
-    );
+async function handlePasswordResetRequest(event) {
+    event.preventDefault();
 
+    const email = document.getElementById("passwordResetEmail").value.trim();
+    const requestForm = event.currentTarget;
+    const submitButton = requestForm.querySelector('button[type="submit"]');
+    const resetForm = document.getElementById("passwordResetForm");
+
+    submitButton.disabled = true;
+    try {
+        const data = await requestPasswordResetCode(email);
+        setPasswordResetStatus(
+            `${data.message} Check your inbox and spam folder. If you already requested a code, wait a minute before requesting another.`,
+            "success"
+        );
+        requestForm.classList.add("hidden");
+        resetForm.classList.remove("hidden");
+    } catch (error) {
+        setPasswordResetStatus(
+            error instanceof Error ? error.message : "Could not request a password reset code.",
+            "error"
+        );
+    } finally {
+        submitButton.disabled = false;
+    }
+}
+
+async function handlePasswordResetResend(event) {
+    const email = document.getElementById("passwordResetEmail").value.trim();
+    const resendButton = event.currentTarget;
+
+    resendButton.disabled = true;
+    try {
+        const data = await requestPasswordResetCode(email);
+        setPasswordResetStatus(
+            `${data.message} Check your inbox and spam folder. If you already requested a code, wait a minute before requesting another.`,
+            "success"
+        );
+    } catch (error) {
+        setPasswordResetStatus(
+            error instanceof Error ? error.message : "Could not request a new code.",
+            "error"
+        );
+    } finally {
+        resendButton.disabled = false;
+    }
+}
+
+async function handlePasswordResetConfirm(event) {
+    event.preventDefault();
+
+    const email = document.getElementById("passwordResetEmail").value.trim();
+    const code = document.getElementById("passwordResetCode").value.trim();
+    const newPassword = document.getElementById("passwordResetNewPassword").value;
+    const confirmPassword = document.getElementById("passwordResetConfirmPassword").value;
+    const form = event.currentTarget;
+    const submitButton = form.querySelector('button[type="submit"]');
+
+    if (newPassword !== confirmPassword) {
+        setPasswordResetStatus("The passwords do not match.", "error");
+        return;
+    }
+
+    submitButton.disabled = true;
+    try {
+        const response = await fetch(`${API_BASE}/auth/password-reset/confirm`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+                email,
+                code,
+                new_password: newPassword
+            })
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+            throw new Error(data.detail || "Could not reset your password.");
+        }
+
+        form.reset();
+        form.classList.add("hidden");
+        document.getElementById("passwordResetRequestForm").classList.add("hidden");
+        setPasswordResetStatus(
+            `${data.message} You can now sign in with your new password.`,
+            "success"
+        );
+    } catch (error) {
+        setPasswordResetStatus(
+            error instanceof Error ? error.message : "Could not reset your password.",
+            "error"
+        );
+    } finally {
+        submitButton.disabled = false;
+    }
 }
 
 
@@ -728,13 +917,6 @@ function getAuthUser() {
 }
 
 
-function isLoggedIn() {
-    return (
-        localStorage.getItem(AUTH_SESSION_KEY) === "true" ||
-        sessionStorage.getItem(AUTH_SESSION_KEY) === "true"
-    );
-}
-
 /* =========================================================
    SHOW / HIDE DASHBOARD
    ========================================================= */
@@ -753,18 +935,6 @@ function showDashboard() {
 
 
     initializeApplication();
-
-}
-
-
-function logout() {
-
-    localStorage.removeItem(
-        AUTH_SESSION_KEY
-    );
-
-
-    showLogin();
 
 }
 
