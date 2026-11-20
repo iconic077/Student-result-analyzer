@@ -58,6 +58,8 @@ uvicorn main:app --reload
 Open `http://127.0.0.1:8000/` to use the app. FastAPI serves the frontend and API
 from the same origin. This repository does not include a database export; the
 MySQL tables used by the API must be created separately.
+Authentication uses browser-session cookies, so the app stays signed in across
+page reloads but normally requires a new login after the browser session ends.
 
 After changing backend routes, redeploy the `studysync-api` service on Render.
 The hosted frontend cannot use email/password login or registration until the

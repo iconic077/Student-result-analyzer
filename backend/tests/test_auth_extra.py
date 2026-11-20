@@ -197,6 +197,15 @@ class AuthSessionTests(unittest.TestCase):
         self.assertTrue(response["success"])
         self.assertEqual(request.session["user_id"], response["user"]["id"])
 
+    def test_auth_cookie_is_limited_to_the_browser_session(self):
+        session_middleware = next(
+            middleware
+            for middleware in main.app.user_middleware
+            if middleware.cls is main.SessionMiddleware
+        )
+
+        self.assertIsNone(session_middleware.kwargs["max_age"])
+
     def test_public_registration_cannot_assign_privileged_roles(self):
         with self.assertRaises(HTTPException) as raised:
             auth_extra.register(

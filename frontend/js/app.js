@@ -1839,7 +1839,8 @@ function setupTaskSystem() {
 
 
 async function saveTask() {
-
+    console.log("SAVE TASK FUNCTION CALLED");
+    
     const name =
         document.getElementById("taskName").value.trim();
 
