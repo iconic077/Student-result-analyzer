@@ -1,22 +1,24 @@
 import json
+import os
+from pathlib import Path
+
+from dotenv import load_dotenv
+
+load_dotenv(Path(__file__).with_name(".env"))
+
 from fastapi import FastAPI, Request
 from fastapi.responses import RedirectResponse
 from starlette.middleware.sessions import SessionMiddleware
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
-from pathlib import Path
 
 import mysql.connector
-from dotenv import load_dotenv
-import os
 
 from google_auth_oauthlib.flow import Flow
 from google.oauth2 import id_token
 from google.auth.transport import requests
 from auth_extra import router as auth_extra_router
 from students_crud import router as students_crud_router
-
-load_dotenv()
 
 
 # =========================================================
@@ -275,12 +277,7 @@ def get_my_result(request: Request):
 # =========================================================
 
 def get_task_user_id(request: Request):
-    user_id = request.session.get("user_id")
-
-    if not user_id:
-        user_id = request.headers.get("X-User-ID")
-
-    return user_id
+    return request.session.get("user_id")
 
 @app.get("/tasks")
 def get_tasks(request: Request):
@@ -1015,7 +1012,7 @@ def google_callback(
     # Check whether user already exists
     cursor.execute(
         """
-        SELECT user_id
+        SELECT user_id, student_id
         FROM users
         WHERE google_id = %s OR email = %s
         LIMIT 1
@@ -1028,6 +1025,7 @@ def google_callback(
     if existing_user:
         # Existing user → update login information
         user_id = existing_user["user_id"]
+        student_id = existing_user["student_id"]
 
         cursor.execute(
             """
@@ -1073,7 +1071,31 @@ def google_callback(
         )
 
         user_id = cursor.lastrowid
+        student_id = None
         user_status = "new_user"
+
+    if student_id is None:
+        roll_no = f"SS-{user_id}"
+        student_name = name or (
+            email.split("@", 1)[0] if email else f"StudySync Student {user_id}"
+        )
+        cursor.execute(
+            """
+            INSERT INTO students (roll_no, name)
+            VALUES (%s, %s)
+            """,
+            (roll_no, student_name)
+        )
+        student_id = cursor.lastrowid
+
+        cursor.execute(
+            """
+            UPDATE users
+            SET student_id = %s
+            WHERE user_id = %s
+            """,
+            (student_id, user_id)
+        )
 
     conn.commit()
 
