@@ -30,6 +30,8 @@ const XP_BY_PRIORITY = {
 let subjects = [];
 let tasks = [];
 let editingTaskId = null;
+const API_BASE = "https://student-result-analyzer-6yst.onrender.com";
+let currentUser = null; // logged-in Google user from /me
 
 
 /* =========================================================
@@ -37,51 +39,37 @@ let editingTaskId = null;
    ========================================================= */
 
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
 
     setupAuth();
+    setupProfileMenu();
     setupNavigation();
+    setupResultSystem();
+    setupTaskSystem();
+    setupPlanner();
+    setupSettings();
+    setupIOSGlassSheen();
 
-    const params = new URLSearchParams(
-        window.location.search
-    );
+    const params = new URLSearchParams(window.location.search);
 
-    const googleLoginSuccess =
-        params.get("google_login") === "success";
-
-    const userId =
-        params.get("user_id");
-
-    if (googleLoginSuccess && userId) {
-
-        localStorage.setItem(
-            AUTH_SESSION_KEY,
-            "true"
-        );
-
-        localStorage.setItem(
-            "studysync_google_user_id",
-            userId
-        );
-
-        window.history.replaceState(
-            {},
-            document.title,
-            window.location.pathname
-        );
-
-        showDashboard();
-        return;
+    if (params.get("google_login") === "success" && params.get("user_id")) {
+        localStorage.setItem(AUTH_SESSION_KEY, "true");
+        localStorage.setItem("studysync_google_user_id", params.get("user_id"));
+        window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    if (isLoggedIn()) {
+    const googleUser = await fetchGoogleSession();
+
+    if (googleUser) {
+        await loadMyResult();
+        showDashboard();
+    } else if (isLoggedIn()) {
         showDashboard();
     } else {
         showLogin();
     }
 
 });
-
 
 
 /* =========================================================
@@ -93,76 +81,54 @@ function setupAuth() {
 
     const loginForm =
         document.getElementById("loginForm");
-
     const registerForm =
         document.getElementById("registerForm");
-
     const showRegisterBtn =
         document.getElementById("showRegisterBtn");
-
     const showLoginBtn =
         document.getElementById("showLoginBtn");
-
     const loginPasswordToggle =
         document.getElementById("loginPasswordToggle");
-
     const registerPasswordToggle =
         document.getElementById("registerPasswordToggle");
-
     const registerConfirmPasswordToggle =
         document.getElementById(
             "registerConfirmPasswordToggle"
         );
-
     const forgotPasswordBtn =
         document.getElementById("forgotPasswordBtn");
-
     const googleLoginBtn =
         document.getElementById("googleLoginBtn");
 
-
     if (loginForm) {
-
         loginForm.addEventListener(
             "submit",
             handleLogin
         );
-
     }
 
-
     if (registerForm) {
-
         registerForm.addEventListener(
             "submit",
             handleRegister
         );
-
     }
 
-
     if (showRegisterBtn) {
-
         showRegisterBtn.addEventListener(
             "click",
             showRegister
         );
-
     }
 
-
     if (showLoginBtn) {
-
         showLoginBtn.addEventListener(
             "click",
             showLogin
         );
-
     }
 
-
     if (loginPasswordToggle) {
-
         loginPasswordToggle.addEventListener(
             "click",
             () => togglePassword(
@@ -170,25 +136,20 @@ function setupAuth() {
                 loginPasswordToggle
             )
         );
-
     }
-
 
     if (registerPasswordToggle) {
 
         registerPasswordToggle.addEventListener(
-            "click",
+                    "click",
             () => togglePassword(
                 "registerPassword",
                 registerPasswordToggle
             )
-        );
-
+    );
     }
 
-
     if (registerConfirmPasswordToggle) {
-
         registerConfirmPasswordToggle.addEventListener(
             "click",
             () => togglePassword(
@@ -196,36 +157,21 @@ function setupAuth() {
                 registerConfirmPasswordToggle
             )
         );
-
     }
 
-
     if (forgotPasswordBtn) {
-
         forgotPasswordBtn.addEventListener(
             "click",
             handleForgotPassword
         );
-
     }
 
     if (googleLoginBtn) {
-    googleLoginBtn.addEventListener(
-        "click",
-        handleGoogleLogin
-    );
-}
-
-}
-
-const googleLoginBtn =
-    document.getElementById("googleLoginBtn");
-
-if (googleLoginBtn) {
-    googleLoginBtn.addEventListener("click", () => {
-        window.location.href =
-            "https://student-result-analyzer-6yst.onrender.com/auth/google";
-    });
+        googleLoginBtn.addEventListener(
+            "click",
+            handleGoogleLogin
+        );
+    }
 }
 
 async function checkLoginStatus() {
@@ -254,66 +200,46 @@ async function checkLoginStatus() {
     }
 }
 
-
 async function loadMyResult() {
     try {
-        const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/me/result",
-            {
-                credentials: "include"
-            }
-        );
-
+        const response = await fetch(`${API_BASE}/me/result`, {
+            credentials: "include"
+        });
         const data = await response.json();
 
-        console.log("My Result:", data);
+        if (!data.logged_in || !data.result || !data.result.subjects) return;
 
-        if (data.logged_in && data.result) {
-            const apiResult = data.result;
-            const savedApiResult = {
-                studentName: data.student?.name ?? data.user?.name ?? "Student",
-                subjects: apiResult.subjects,
-                total: Number(apiResult.total_marks ?? 0),
-                average: Number(apiResult.average_marks ?? apiResult.percentage ?? 0),
-                percentage: Number(apiResult.percentage ?? apiResult.average_marks ?? 0),
-                grade: apiResult.grade,
-                passed: apiResult.result === "Pass",
-                updatedAt: new Date().toISOString()
-            };
-            
-            localStorage.setItem(
-                RESULT_KEY,
-                JSON.stringify(savedApiResult)
-            );
+        const apiResult = data.result;
+        const subjectList = apiResult.subjects.map(s => ({
+            name: s.name,
+            marks: s.marks,
+            max_marks: s.max_marks
+        }));
 
-            document.getElementById("dashAverage").textContent =
-                apiResult.average_marks ?? "--";
+        if (subjectList.length === 0) return;
 
-            document.getElementById("dashGrade").textContent =
-                apiResult.grade ?? "--";
+        const sortedDesc = [...subjectList].sort((a, b) => b.marks - a.marks);
+        const sortedAsc = [...subjectList].sort((a, b) => a.marks - b.marks);
 
-            // Keep the backend summary separate from manual subject analysis.
-            console.log("Backend result summary:", apiResult);
-        }
+        const saved = {
+            studentName: data.student?.name ?? data.user?.name ?? "Student",
+            subjects: subjectList,
+            total: Number(apiResult.total_marks ?? 0),
+            average: Number(apiResult.percentage ?? 0),
+            percentage: Number(apiResult.percentage ?? 0),
+            grade: apiResult.grade,
+            passed: apiResult.result === "Pass",
+            highest: sortedDesc[0],
+            lowest: sortedAsc[0],
+            updatedAt: new Date().toISOString()
+        };
 
-        if (data.logged_in) {
-            document.getElementById("authScreen").style.display = "none";
+        localStorage.setItem(RESULT_KEY, JSON.stringify(saved));
 
-            const dashboard = document.getElementById("dashboard");
-
-            if (dashboard) {
-                dashboard.style.display = "block";
-            }
-
-            initializeApplication();
-        }
     } catch (error) {
         console.error("Failed to load result:", error);
     }
 }
-
-loadMyResult();
-
 
 
 /* =========================================================
@@ -379,46 +305,24 @@ function handleLogin(event) {
 
 
     if (password !== savedUser.password) {
-
         alert(
             "Incorrect password. Please try again."
         );
-
         return;
-
     }
 
+const rememberMe = document.getElementById("rememberMe");
+const sessionStore = rememberMe && rememberMe.checked ? localStorage : sessionStorage;
+sessionStore.setItem(AUTH_SESSION_KEY, "true");
 
-    localStorage.setItem(
-        AUTH_SESSION_KEY,
-        "true"
-    );
-
-
-    const rememberMe =
-        document.getElementById("rememberMe");
-
-
-    if (rememberMe && rememberMe.checked) {
-
-        localStorage.setItem(
-            "studysync_remember",
-            "true"
-        );
-
-    } else {
-
-        localStorage.removeItem(
-            "studysync_remember"
-        );
-
-    }
-
-
-    showDashboard();
-
+if (rememberMe && rememberMe.checked) {
+    localStorage.setItem("studysync_remember", "true");
+} else {
+    localStorage.removeItem("studysync_remember");
 }
 
+showDashboard();
+}
 
 /* =========================================================
    GOOGLE LOGIN
@@ -427,6 +331,71 @@ function handleLogin(event) {
 function handleGoogleLogin() {
     window.location.href =
         "https://student-result-analyzer-6yst.onrender.com/auth/google";
+}
+
+
+async function fetchGoogleSession() {
+    try {
+        const response = await fetch(`${API_BASE}/me`, {
+            credentials: "include"
+        });
+        const data = await response.json();
+
+        if (!data.logged_in) return null;
+
+        currentUser = data.user;
+        return data.user;
+
+    } catch (error) {
+        console.error("Session check failed:", error);
+        return null;
+    }
+}
+
+
+async function logout() {
+    try {
+        await fetch(`${API_BASE}/auth/logout`, {
+            method: "POST",
+            credentials: "include"
+        });
+    } catch (error) {
+        console.error("Logout request failed:", error);
+    }
+
+    localStorage.removeItem(AUTH_SESSION_KEY);
+    localStorage.removeItem("studysync_google_user_id");
+
+    currentUser = null;
+    location.reload();
+}
+
+
+function setupProfileMenu() {
+
+    const profileBtn = document.getElementById("profileBtn");
+    const menu = document.getElementById("profileMenu");
+    const menuLogout = document.getElementById("profileLogoutBtn");
+    const settingsLogout = document.getElementById("logoutBtn");
+
+    if (profileBtn && menu) {
+
+        profileBtn.addEventListener("click", (event) => {
+            event.stopPropagation();
+            menu.classList.toggle("hidden");
+        });
+
+        document.addEventListener("click", (event) => {
+            if (!menu.contains(event.target)) {
+                menu.classList.add("hidden");
+            }
+        });
+
+    }
+
+    if (menuLogout) menuLogout.addEventListener("click", logout);
+    if (settingsLogout) settingsLogout.addEventListener("click", logout);
+
 }
 
 
@@ -725,15 +694,6 @@ function handleForgotPassword() {
 }
 
 
-/* =========================================================
-   GOOGLE LOGIN
-   ========================================================= */
-
-function handleGoogleLogin() {
-    window.location.href =
-        "https://student-result-analyzer-6yst.onrender.com/auth/google";
-}
-
 
 /* =========================================================
    AUTH HELPERS
@@ -769,15 +729,11 @@ function getAuthUser() {
 
 
 function isLoggedIn() {
-
     return (
-        localStorage.getItem(
-            AUTH_SESSION_KEY
-        ) === "true"
+        localStorage.getItem(AUTH_SESSION_KEY) === "true" ||
+        sessionStorage.getItem(AUTH_SESSION_KEY) === "true"
     );
-
 }
-
 
 /* =========================================================
    SHOW / HIDE DASHBOARD
@@ -820,32 +776,47 @@ function logout() {
 function initializeApplication() {
 
     loadData();
-
     loadTasks();
-
-    setupNavigation();
-
-    setupResultSystem();
-
-    setupTaskSystem();
-
-    setupPlanner();
-
-    setupSettings();
-
     renderSubjects();
-
     renderTasks();
-
     updateDashboard();
-
     updateAnalytics();
-
     updateRewards();
-
     loadPlannerSettings();
-
     updateProfileUI();
+}
+
+/* =========================================================
+   iOS SPECULAR GLASS SHEEN
+   ========================================================= */
+
+function setupIOSGlassSheen() {
+
+    const glassTargets = document.querySelectorAll(
+        ".stat-card, .panel, .form-panel, .auth-card, .reward-card"
+    );
+
+    glassTargets.forEach((card) => {
+
+        card.addEventListener("pointermove", (event) => {
+            const rect = card.getBoundingClientRect();
+            const x = ((event.clientX - rect.left) / rect.width) * 100;
+            const y = ((event.clientY - rect.top) / rect.height) * 100;
+
+            card.style.background = `
+                radial-gradient(
+                    circle at ${x}% ${y}%,
+                    rgba(255, 255, 255, 0.14),
+                    rgba(255, 255, 255, 0.05) 55%
+                )
+            `;
+        });
+
+        card.addEventListener("pointerleave", () => {
+            card.style.background = "";
+        });
+
+    });
 
 }
 
@@ -1036,38 +1007,14 @@ function setupNavigation() {
                 );
 
 
-                if (
-                    sectionName ===
-                    "analytics"
-                ) {
-
+                if (sectionName === "analytics") {
                     updateAnalytics();
-
-                }
-
-
-                if (
-                    sectionName ===
-                    "dashboard"
-                ) {
-
+                } else if (sectionName === "dashboard") {
                     updateDashboard();
-
-                }
-
-
-                if (
-                    sectionName ===
-                    "rewards"
-                ) 
-                
-                
-                if (sectionName === "tasks") {
+                } else if (sectionName === "tasks") {
                     loadTasks();
-                } {
-
+                } else if (sectionName === "rewards") {
                     updateRewards();
-
                 }
 
             }
@@ -2442,35 +2389,16 @@ function updateDashboard() {
         );
 
 
-        const topName =
-            document.getElementById(
-                "topStudentName"
-            );
-
-
-        if (topName) {
-
-            topName.textContent =
-                result.studentName ||
-                "Student";
-
-        }
-
     } else {
-
         document.getElementById(
             "dashAverage"
         ).textContent =
             "--";
-
-
         document.getElementById(
             "dashGrade"
         ).textContent =
             "--";
-
     }
-
 
     const completed =
         tasks.filter(
@@ -4634,52 +4562,24 @@ function updateRewards() {
 
 function updateProfileUI() {
 
-    const user =
-        getAuthUser();
-
-
-    if (!user) return;
-
-
-    const result =
-        getSavedResult();
-
+    const localUser = getAuthUser();
 
     const name =
-        result?.studentName ||
-        user.name ||
-        user.username ||
+        currentUser?.name ||
+        localUser?.name ||
         "Student";
 
+    const email =
+        currentUser?.email ||
+        localUser?.email ||
+        "";
 
-    const topStudentName =
-        document.getElementById(
-            "topStudentName"
-        );
+    document.getElementById("topStudentName").textContent = name;
+    document.getElementById("profileMenuName").textContent = name;
+    document.getElementById("profileMenuEmail").textContent = email;
 
-
-    if (topStudentName) {
-
-        topStudentName.textContent =
-            name;
-
-    }
-
-
-    const avatar =
-        document.querySelector(
-            ".avatar"
-        );
-
-
-    if (avatar) {
-
-        avatar.textContent =
-            name
-                .charAt(0)
-                .toUpperCase();
-
-    }
+    document.querySelector(".avatar").textContent =
+        name.charAt(0).toUpperCase();
 
 }
 
@@ -4902,64 +4802,39 @@ async function loadTasks() {
         console.log("Tasks from backend:", data);
 
         if (!data.logged_in) {
-
             console.log("User is not logged in.");
-
             tasks = [];
-
             return;
         }
 
         if (!Array.isArray(data.tasks)) {
-
             tasks = [];
-
             return;
         }
 
         tasks = data.tasks.map(task => ({
-
             id: task.task_id,
-
             name: task.title,
-
             subject: task.subject || "",
-
             date: task.task_date || "",
-
             startTime: task.start_time || "",
-
             endTime: task.end_time || "",
-
             priority: task.priority || "Medium",
-
             repeat: task.repeat_type || "Once",
-
             completed: Boolean(task.is_completed),
-
             completedAt: task.completed_at || null,
-
             createdAt: task.created_at
-
         }));
 
         console.log("Frontend tasks:", tasks);
-
         renderTasks();
-
         updateDashboard();
-
         updateAnalytics();
-
         updateRewards();
-
     } catch (error) {
-
         console.error(
             "Failed to load tasks:",
             error
         );
-
     }
-
 }
