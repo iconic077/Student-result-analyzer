@@ -11,9 +11,7 @@ const RESULT_KEY = "studysync_result";
 const TASK_KEY = "studysync_tasks";
 const XP_KEY = "studysync_xp";
 const PLANNER_KEY = "studysync_planner";
-
-const AUTH_USER_KEY = "studysync_user";
-
+const LEGACY_AUTH_USER_KEY = "studysync_user";
 
 const XP_BY_PRIORITY = {
     Low: 10,
@@ -29,8 +27,12 @@ const XP_BY_PRIORITY = {
 let subjects = [];
 let tasks = [];
 let editingTaskId = null;
-const API_BASE = "https://student-result-analyzer-6yst.onrender.com";
-let currentUser = null; // logged-in Google user from /me
+const API_BASE = window.location.protocol === "file:"
+    ? "https://student-result-analyzer-6yst.onrender.com"
+    : ["localhost", "127.0.0.1"].includes(window.location.hostname)
+        ? `${window.location.protocol}//${window.location.hostname}:8000`
+        : window.location.origin;
+let currentUser = null;
 
 
 /* =========================================================
@@ -43,6 +45,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     setupAuth();
     setupProfileMenu();
     setupNavigation();
+    setupActivityCalendar();
     setupResultSystem();
     setupTaskSystem();
     setupPlanner();
@@ -58,9 +61,7 @@ document.addEventListener("DOMContentLoaded", async () => {
         window.history.replaceState({}, document.title, window.location.pathname);
     }
 
-    const googleUser = googleLoginCompleted
-        ? await fetchGoogleSession()
-        : null;
+    const googleUser = await fetchGoogleSession();
 
     if (googleUser) {
         await loadMyResult();
@@ -77,7 +78,6 @@ document.addEventListener("DOMContentLoaded", async () => {
 
 /* =========================================================
    AUTHENTICATION SYSTEM
-   FRONTEND DEMO - BACKEND WILL COME LATER
    ========================================================= */
 
 function setupAuth() {
@@ -213,7 +213,7 @@ function setupAuth() {
 async function checkLoginStatus() {
     try {
         const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/me",
+            `${API_BASE}/me`,
             {
                 credentials: "include"
             }
@@ -282,77 +282,98 @@ async function loadMyResult() {
    LOGIN
    ========================================================= */
 
-function handleLogin(event) {
-
+async function handleLogin(event) {
     event.preventDefault();
-
-
     const loginValue =
         document.getElementById("loginEmail")
             .value
             .trim();
-
     const password =
         document.getElementById("loginPassword")
             .value;
 
-
     if (!loginValue || !password) {
-
         alert("Please enter your login details.");
-
         return;
-
     }
 
+    const submitButton = event.currentTarget.querySelector(
+        'button[type="submit"]'
+    );
+    submitButton.disabled = true;
+    try {
+        let data;
+        try {
+            data = await submitAuthRequest("/login", {
+                email: loginValue,
+                password
+            });
+        } catch (error) {
+            const legacyUser = getLegacyAuthUser();
+            if (
+                error.status !== 401 ||
+                !legacyUser ||
+                legacyUser.email?.toLowerCase() !== loginValue.toLowerCase() ||
+                legacyUser.password !== password
+            ) {
+                throw error;
+            }
 
-    const savedUser =
-        getAuthUser();
+            data = await submitAuthRequest("/register", {
+                name: legacyUser.name,
+                email: legacyUser.email,
+                password: legacyUser.password
+            });
+        }
 
+        currentUser = data.user;
+        localStorage.removeItem(LEGACY_AUTH_USER_KEY);
+        await loadMyResult();
+        showDashboard();
+    } catch (error) {
+        alert(error instanceof Error ? error.message : "Could not log in.");
+    } finally {
+        submitButton.disabled = false;
+    }
+}
 
-    if (!savedUser) {
+async function submitAuthRequest(endpoint, payload) {
+    const response = await fetch(`${API_BASE}/auth${endpoint}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(payload)
+    });
 
-        alert(
-            "No account found. Please create an account first. 📝"
+    let data;
+    try {
+        data = await response.json();
+    } catch {
+        throw new Error(`The server returned an invalid response (${response.status}).`);
+    }
+
+    if (!response.ok) {
+        if (response.status === 404 || response.status === 405) {
+            const action = endpoint === "/login"
+                ? "Email/password login"
+                : "Account registration";
+            throw new Error(
+                `${action} is not enabled on the deployed backend yet. Redeploy the updated backend, or use Continue with Google.`
+            );
+        }
+
+        const error = new Error(
+            data.detail || data.message || "The request could not be completed."
         );
-
-        return;
-
+        error.status = response.status;
+        throw error;
     }
 
-
-    const savedEmail =
-        typeof savedUser.email === "string"
-            ? savedUser.email.toLowerCase()
-            : "";
-    const savedUsername =
-        typeof savedUser.username === "string"
-            ? savedUser.username.toLowerCase()
-            : "";
-    const identifierMatches =
-        loginValue.toLowerCase() === savedEmail ||
-        (savedUsername && loginValue.toLowerCase() === savedUsername);
-
-
-    if (!identifierMatches) {
-
-        alert(
-            "Email/Username does not match."
-        );
-
-        return;
-
+    if (!data.success || !data.user) {
+        throw new Error(data.message || "The server did not confirm the account operation.");
     }
 
-
-    if (password !== savedUser.password) {
-        alert(
-            "Incorrect password. Please try again."
-        );
-        return;
-    }
-
-showDashboard();
+    return data;
 }
 
 /* =========================================================
@@ -360,8 +381,7 @@ showDashboard();
    ========================================================= */
 
 function handleGoogleLogin() {
-    window.location.href =
-        "https://student-result-analyzer-6yst.onrender.com/auth/google";
+    window.location.href = `${API_BASE}/auth/google`;
 }
 
 
@@ -453,35 +473,23 @@ function setupProfileMenu() {
    REGISTER
    ========================================================= */
 
-function handleRegister(event) {
-
+async function handleRegister(event) {
     event.preventDefault();
-
-
     const name =
         document.getElementById("registerName")
             .value
             .trim();
-
     const email =
         document.getElementById("registerEmail")
             .value
             .trim();
-
-    const usernameInput =
-        document.getElementById("registerUsername");
-    const username =
-        usernameInput ? usernameInput.value.trim() : "";
-
     const password =
         document.getElementById("registerPassword")
             .value;
-
     const confirmPassword =
         document.getElementById(
             "registerConfirmPassword"
         ).value;
-
 
     if (
         !name ||
@@ -489,119 +497,66 @@ function handleRegister(event) {
         !password ||
         !confirmPassword
     ) {
-
         alert(
             "Please fill all required fields."
         );
-
         return;
-
     }
 
-
     if (password.length < 6) {
-
         alert(
             "Password should contain at least 6 characters."
         );
-
         return;
-
     }
 
-
     if (password !== confirmPassword) {
-
         alert(
             "Passwords do not match."
         );
-
         return;
-
     }
-
 
     const emailPattern =
         /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-
     if (!emailPattern.test(email)) {
-
         alert(
             "Please enter a valid email address."
         );
-
         return;
-
     }
 
-
-    const existingUser =
-        getAuthUser();
-
-
-    if (existingUser) {
-
-        const emailExists =
-            existingUser.email.toLowerCase() ===
-            email.toLowerCase();
-
-        const usernameExists =
-            username &&
-            typeof existingUser.username === "string" &&
-            existingUser.username.toLowerCase() === username.toLowerCase();
-
-
-        if (emailExists) {
-
-            alert(
-                "An account with this email already exists."
-            );
-
-            return;
-
-        }
-
-
-        if (usernameExists) {
-
-            alert(
-                "This username is already registered."
-            );
-
-            return;
-
-        }
-
-    }
-
-
-    const user = {
-        name,
-        email,
-        password,
-        createdAt:
-            new Date().toISOString()
-    };
-
-    if (username) {
-        user.username = username;
-    }
-
-
-    localStorage.setItem(
-        AUTH_USER_KEY,
-        JSON.stringify(user)
+    const submitButton = event.currentTarget.querySelector(
+        'button[type="submit"]'
     );
+    submitButton.disabled = true;
+    try {
+        const data = await submitAuthRequest("/register", {
+            name,
+            email,
+            password
+        });
+        currentUser = data.user;
+        localStorage.removeItem(LEGACY_AUTH_USER_KEY);
+        showDashboard();
+    } catch (error) {
+        alert(error instanceof Error ? error.message : "Could not create the account.");
+    } finally {
+        submitButton.disabled = false;
+    }
+}
 
+function getLegacyAuthUser() {
+    const storedUser = localStorage.getItem(LEGACY_AUTH_USER_KEY);
+    if (!storedUser) return null;
 
-    alert(
-        "Account created successfully! 🎉"
-    );
-
-
-    showDashboard();
-
+    try {
+        return JSON.parse(storedUser);
+    } catch (error) {
+        console.error("Could not read the previous local account:", error);
+        return null;
+    }
 }
 
 
@@ -888,35 +843,6 @@ async function handlePasswordResetConfirm(event) {
    AUTH HELPERS
    ========================================================= */
 
-function getAuthUser() {
-
-    const data =
-        localStorage.getItem(
-            AUTH_USER_KEY
-        );
-
-
-    if (!data) return null;
-
-
-    try {
-
-        return JSON.parse(data);
-
-    } catch (error) {
-
-        console.error(
-            "Could not read user:",
-            error
-        );
-
-        return null;
-
-    }
-
-}
-
-
 /* =========================================================
    SHOW / HIDE DASHBOARD
    ========================================================= */
@@ -1192,6 +1118,28 @@ function setupNavigation() {
 
     });
 
+}
+
+
+function openTasksForDate(date) {
+    const taskDate = document.getElementById("taskDate");
+    const taskName = document.getElementById("taskName");
+    const tasksNavItem = document.querySelector(
+        '.nav-item[data-section="tasks"]'
+    );
+
+    if (taskDate) {
+        taskDate.value = date;
+    }
+
+    if (tasksNavItem) {
+        tasksNavItem.click();
+    }
+
+    if (taskName) {
+        taskName.scrollIntoView({ behavior: "smooth", block: "center" });
+        taskName.focus({ preventScroll: true });
+    }
 }
 
 
@@ -1929,16 +1877,13 @@ async function saveTask() {
     try {
 
         const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
+            `${API_BASE}/tasks`,
             {
                 method: "POST",
                 credentials: "include",
-            
                 headers: {
-                    "Content-Type": "application/json",
-                    "X-User-ID": localStorage.getItem("studysync_google_user_id")
+                    "Content-Type": "application/json"
                 },
-            
                 body: JSON.stringify({
                     title: name,
                     subject_name: subject,
@@ -2005,7 +1950,7 @@ async function loadTasks() {
     try {
 
         const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
+            `${API_BASE}/tasks`,
             {
                 method: "GET",
                 credentials: "include"
@@ -2016,13 +1961,12 @@ async function loadTasks() {
 
         console.log("Tasks from backend:", data);
 
-        if (!data.logged_in) {
-            console.log("User is not logged in.");
-            return;
-        }
-
-        if (!data.tasks) {
+        if (!data.logged_in || !Array.isArray(data.tasks)) {
             tasks = [];
+            renderTasks();
+            updateDashboard();
+            updateAnalytics();
+            updateRewards();
             return;
         }
 
@@ -2045,6 +1989,7 @@ async function loadTasks() {
         renderTasks();
         updateDashboard();
         updateAnalytics();
+        updateRewards();
 
     } catch (error) {
 
@@ -2351,7 +2296,7 @@ async function toggleTask(id, completed) {
         if (completed) {
 
             const response = await fetch(
-                `https://student-result-analyzer-6yst.onrender.com/tasks/${id}/complete`,
+                `${API_BASE}/tasks/${id}/complete`,
                 {
                     method: "PUT",
                     credentials: "include"
@@ -2415,7 +2360,7 @@ async function deleteTask(id) {
     try {
 
         const response = await fetch(
-            `https://student-result-analyzer-6yst.onrender.com/tasks/${id}`,
+            `${API_BASE}/tasks/${id}`,
             {
                 method: "DELETE",
                 credentials: "include"
@@ -2791,56 +2736,33 @@ function getCompletedDates() {
     const dates =
         new Set();
 
-
     tasks.forEach(
         task => {
+            const completedDate = getTaskCompletionDate(task);
 
-            if (!task.completed)
-                return;
-
-
-            if (task.completedAt) {
-
-                const date =
-                    new Date(
-                        task.completedAt
-                    );
-
-
-                if (
-                    !Number.isNaN(
-                        date.getTime()
-                    )
-                ) {
-
-                    dates.add(
-                        `${date.getFullYear()}-${
-                            String(
-                                date.getMonth() + 1
-                            ).padStart(2, "0")
-                        }-${
-                            String(
-                                date.getDate()
-                            ).padStart(2, "0")
-                        }`
-                    );
-
-                }
-
-            } else if (task.date) {
-
-                dates.add(
-                    task.date
-                );
-
+            if (completedDate) {
+                dates.add(completedDate);
             }
-
         }
     );
 
-
     return dates;
 
+}
+
+
+function getTaskCompletionDate(task) {
+    if (!task.completed) return null;
+
+    if (task.completedAt) {
+        const completedAt = new Date(task.completedAt);
+
+        if (!Number.isNaN(completedAt.getTime())) {
+            return formatLocalDate(completedAt);
+        }
+    }
+
+    return task.date || null;
 }
 
 
@@ -3091,6 +3013,239 @@ function updateStreakUI() {
 
     }
 
+}
+
+
+function setupActivityCalendar() {
+    const modal = document.getElementById("activityCalendarModal");
+    const closeButton = document.getElementById("closeActivityCalendarBtn");
+    const previousButton = document.getElementById("previousCalendarMonthBtn");
+    const nextButton = document.getElementById("nextCalendarMonthBtn");
+    const daysContainer = document.getElementById("activityCalendarDays");
+    const addTaskButton = document.getElementById("calendarAddTaskBtn");
+    const dashboardAddTaskButton = document.getElementById("dashboardAddTaskBtn");
+    const currentStreakButton = document.getElementById("currentStreakCalendarBtn");
+    const todayStatusButton = document.getElementById("todayStatusCalendarBtn");
+
+    if (!modal) return;
+
+    currentStreakButton?.addEventListener("click", event => {
+        openActivityCalendar(getLocalDateString(), event.currentTarget, "streak");
+    });
+    todayStatusButton?.addEventListener("click", event => {
+        openActivityCalendar(getLocalDateString(), event.currentTarget, "tasks");
+    });
+    dashboardAddTaskButton?.addEventListener("click", () => {
+        openTasksForDate(getLocalDateString());
+    });
+    closeButton?.addEventListener("click", closeActivityCalendar);
+    previousButton?.addEventListener("click", () => {
+        shiftActivityCalendarMonth(-1);
+    });
+    nextButton?.addEventListener("click", () => {
+        shiftActivityCalendarMonth(1);
+    });
+    daysContainer?.addEventListener("click", event => {
+        const dayButton = event.target.closest("[data-calendar-date]");
+        if (!dayButton) return;
+
+        activityCalendarSelectedDate = dayButton.dataset.calendarDate;
+        renderActivityCalendar();
+    });
+    addTaskButton?.addEventListener("click", () => {
+        closeActivityCalendar();
+        openTasksForDate(activityCalendarSelectedDate);
+    });
+    modal.addEventListener("click", event => {
+        if (event.target === modal) {
+            closeActivityCalendar();
+        }
+    });
+    document.addEventListener("keydown", event => {
+        if (event.key === "Escape" && !modal.classList.contains("hidden")) {
+            closeActivityCalendar();
+        }
+    });
+}
+
+
+function shiftActivityCalendarMonth(amount) {
+    const year = activityCalendarMonth.getFullYear();
+    const month = activityCalendarMonth.getMonth() + amount;
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const selectedDay = Number(activityCalendarSelectedDate.slice(-2));
+
+    activityCalendarMonth = new Date(year, month, 1);
+    activityCalendarSelectedDate = formatLocalDate(
+        new Date(year, month, Math.min(selectedDay, daysInMonth))
+    );
+    renderActivityCalendar();
+}
+
+
+let activityCalendarSelectedDate = "";
+let activityCalendarMonth = new Date();
+let activityCalendarReturnFocus = null;
+let activityCalendarMode = "tasks";
+
+
+function openActivityCalendar(date, trigger, mode) {
+    const modal = document.getElementById("activityCalendarModal");
+    if (!modal) return;
+
+    activityCalendarSelectedDate = date;
+    activityCalendarMonth = new Date(`${date}T00:00:00`);
+    activityCalendarMode = mode;
+    activityCalendarReturnFocus = trigger || document.activeElement;
+    document.getElementById("activityCalendarTitle").textContent =
+        mode === "streak" ? "Current streak calendar" : "Task status calendar";
+    document.querySelector(".calendar-summary").textContent =
+        mode === "streak"
+            ? "🔥 marks each day you completed a task and kept your streak active."
+            : "Select a date to see its scheduled tasks and completion status.";
+    document.getElementById("calendarAddTaskBtn").classList.toggle(
+        "hidden",
+        mode === "streak"
+    );
+    renderActivityCalendar();
+    modal.classList.remove("hidden");
+    document.getElementById("closeActivityCalendarBtn")?.focus();
+}
+
+
+function closeActivityCalendar() {
+    const modal = document.getElementById("activityCalendarModal");
+    if (!modal) return;
+
+    modal.classList.add("hidden");
+    activityCalendarReturnFocus?.focus();
+    activityCalendarReturnFocus = null;
+}
+
+
+function renderActivityCalendar() {
+    const monthHeading = document.getElementById("activityCalendarMonth");
+    const daysContainer = document.getElementById("activityCalendarDays");
+    if (!monthHeading || !daysContainer) return;
+
+    const year = activityCalendarMonth.getFullYear();
+    const month = activityCalendarMonth.getMonth();
+    const firstWeekday = new Date(year, month, 1).getDay();
+    const daysInMonth = new Date(year, month + 1, 0).getDate();
+    const activeDates = getCompletedDates();
+
+    monthHeading.textContent = activityCalendarMonth.toLocaleDateString(
+        undefined,
+        { month: "long", year: "numeric" }
+    );
+    daysContainer.innerHTML = "";
+
+    for (let blank = 0; blank < firstWeekday; blank++) {
+        const emptyCell = document.createElement("span");
+        emptyCell.className = "calendar-day-empty";
+        emptyCell.setAttribute("aria-hidden", "true");
+        daysContainer.appendChild(emptyCell);
+    }
+
+    for (let day = 1; day <= daysInMonth; day++) {
+        const date = formatLocalDate(new Date(year, month, day));
+        const scheduledTasks = tasks.filter(task => task.date === date);
+        const hasStreak = activityCalendarMode === "streak" && activeDates.has(date);
+        const hasCompletedTask =
+            activityCalendarMode === "tasks" &&
+            scheduledTasks.some(task => task.completed);
+        const isToday = date === getLocalDateString();
+        const isSelected = date === activityCalendarSelectedDate;
+        const dayButton = document.createElement("button");
+
+        dayButton.type = "button";
+        dayButton.className = "calendar-day";
+        dayButton.dataset.calendarDate = date;
+        dayButton.setAttribute(
+            "aria-label",
+            `${new Date(year, month, day).toLocaleDateString()}${
+                activityCalendarMode === "tasks" && scheduledTasks.length
+                    ? `, ${scheduledTasks.length} scheduled task${scheduledTasks.length === 1 ? "" : "s"}`
+                    : ""
+            }${hasStreak ? ", streak day" : ""}`
+        );
+        dayButton.setAttribute("aria-pressed", String(isSelected));
+
+        if (activityCalendarMode === "tasks" && scheduledTasks.length) {
+            dayButton.classList.add("has-tasks");
+        }
+        if (hasCompletedTask) dayButton.classList.add("has-completed-tasks");
+        if (hasStreak) dayButton.classList.add("streak-day");
+        if (isToday) dayButton.classList.add("today");
+        if (isSelected) dayButton.classList.add("selected");
+
+        dayButton.innerHTML = `
+            <span class="calendar-day-number">${day}</span>
+            <span class="calendar-day-indicator">${
+                hasStreak ? "🔥" : hasCompletedTask ? "✓" : scheduledTasks.length && activityCalendarMode === "tasks" ? "•" : ""
+            }</span>
+        `;
+        dayButton.addEventListener("click", () => {
+            activityCalendarSelectedDate = date;
+            renderActivityCalendar();
+        });
+        daysContainer.appendChild(dayButton);
+    }
+
+    renderCalendarDayDetails(activityCalendarSelectedDate);
+}
+
+
+function renderCalendarDayDetails(date) {
+    const selectedDateHeading = document.getElementById("calendarSelectedDate");
+    const tasksContainer = document.getElementById("calendarTasksForDate");
+    if (!selectedDateHeading || !tasksContainer) return;
+
+    const dateObject = new Date(`${date}T00:00:00`);
+    selectedDateHeading.textContent = dateObject.toLocaleDateString(undefined, {
+        weekday: "long",
+        month: "long",
+        day: "numeric",
+        year: "numeric"
+    });
+
+    if (activityCalendarMode === "streak") {
+        tasksContainer.innerHTML = getCompletedDates().has(date)
+            ? '<p class="calendar-day-empty">🔥 Streak activity recorded for this day.</p>'
+            : '<p class="calendar-day-empty">No streak activity recorded for this day.</p>';
+        return;
+    }
+
+    const dayTasks = tasks
+        .filter(task => task.date === date)
+        .sort((first, second) =>
+            (first.startTime || "").localeCompare(second.startTime || "")
+        );
+
+    if (!dayTasks.length) {
+        tasksContainer.innerHTML =
+            '<p class="calendar-day-empty">No tasks scheduled for this day.</p>';
+        return;
+    }
+
+    tasksContainer.innerHTML = dayTasks.map(task => {
+        const status = task.completed ? "Completed" : "Scheduled";
+        const time = task.startTime
+            ? `${task.startTime}${task.endTime ? ` - ${task.endTime}` : ""}`
+            : "No time set";
+
+        return `
+            <div class="calendar-task-row">
+                <div class="calendar-task-info">
+                    <strong>${escapeHTML(task.name)}</strong>
+                    <small>${escapeHTML(task.subject || "General")} · ${escapeHTML(time)}</small>
+                </div>
+                <span class="calendar-task-status ${task.completed ? "complete" : ""}">
+                    ${status}
+                </span>
+            </div>
+        `;
+    }).join("");
 }
 
 
@@ -4732,16 +4887,12 @@ function updateRewards() {
 
 function updateProfileUI() {
 
-    const localUser = getAuthUser();
-
     const name =
         currentUser?.name ||
-        localUser?.name ||
         "Student";
 
     const email =
         currentUser?.email ||
-        localUser?.email ||
         "";
 
     document.getElementById("topStudentName").textContent = name;
@@ -4934,77 +5085,4 @@ function escapeHTML(value) {
             "&#039;"
         );
 
-}
-
-async function createTestTask() {
-    try {
-        const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
-            {
-                method: "POST",
-                credentials: "include"
-            }
-        );
-
-        const data = await response.json();
-
-        console.log("Create Task:", data);
-
-    } catch (error) {
-        console.error("Failed to create task:", error);
-    }
-}
-
-async function loadTasks() {
-
-    try {
-
-        const response = await fetch(
-            "https://student-result-analyzer-6yst.onrender.com/tasks",
-            {
-                method: "GET",
-                credentials: "include"
-            }
-        );
-
-        const data = await response.json();
-
-        console.log("Tasks from backend:", data);
-
-        if (!data.logged_in) {
-            console.log("User is not logged in.");
-            tasks = [];
-            return;
-        }
-
-        if (!Array.isArray(data.tasks)) {
-            tasks = [];
-            return;
-        }
-
-        tasks = data.tasks.map(task => ({
-            id: task.task_id,
-            name: task.title,
-            subject: task.subject || "",
-            date: task.task_date || "",
-            startTime: task.start_time || "",
-            endTime: task.end_time || "",
-            priority: task.priority || "Medium",
-            repeat: task.repeat_type || "Once",
-            completed: Boolean(task.is_completed),
-            completedAt: task.completed_at || null,
-            createdAt: task.created_at
-        }));
-
-        console.log("Frontend tasks:", tasks);
-        renderTasks();
-        updateDashboard();
-        updateAnalytics();
-        updateRewards();
-    } catch (error) {
-        console.error(
-            "Failed to load tasks:",
-            error
-        );
-    }
 }
