@@ -15,39 +15,53 @@ Student Result Analyzer automates the calculation and analysis of student academ
 - Daily study tasks — auto-generated from weak subjects or added manually
 - Custom Study Planner with recurring weekly schedules
 - XP, streaks, and auto-unlocked badges for consistency
+- Google accounts without a linked student record receive a personal profile with an app-generated `SS-<user_id>` roll number for task tracking
 - Responsive dashboard (desktop + mobile)
 
 ## Tech Stack
 
 - **Frontend:** HTML, CSS, JavaScript
-- **Backend:** Node.js, Express.js
+- **Backend:** Python, FastAPI
 - **Database:** MySQL
 
 ## Project Structure
 
-student-result-analyzer/
-├── frontend/ # HTML, CSS, JS
-├── backend/
-│ ├── server.js
-│ ├── config/
-│ │ └── db.js
-│ ├── routes/
-│ ├── middleware/
-│ └── .env.example
-└── database/
-└── result_analyzer_export.sql
-
+```text
+frontend/
+  index.html
+  css/style.css
+  js/app.js
+backend/
+  main.py
+  auth_extra.py
+  security.py
+  students_crud.py
+  requirements.txt
+```
 
 ## Setup (Backend)
 
-```bash
+1. Install Python and MySQL, and configure the required database tables.
+2. Set `backend/.env` with `DB_HOST`, `DB_PORT`, `DB_USER`, `DB_PASSWORD`,
+   `DB_NAME`, `SESSION_SECRET`, and `JWT_SECRET`. Configure Google OAuth values
+   if Google sign-in is needed.
+3. From the repository root, run:
+
+```powershell
 cd backend
-npm install
-# create a .env file with your own DB credentials (see .env.example)
-npx nodemon server.js
+python -m venv .venv
+.\.venv\Scripts\Activate.ps1
+python -m pip install -r requirements.txt
+uvicorn main:app --reload
 ```
 
-Import `database/result_analyzer_export.sql` into your own local MySQL server before running the backend.
+Open `http://127.0.0.1:8000/` to use the app. FastAPI serves the frontend and API
+from the same origin. This repository does not include a database export; the
+MySQL tables used by the API must be created separately.
+
+After changing backend routes, redeploy the `studysync-api` service on Render.
+The hosted frontend cannot use email/password login or registration until the
+deployed API includes the `/auth/login` and `/auth/register` routes.
 
 ## Password recovery
 
