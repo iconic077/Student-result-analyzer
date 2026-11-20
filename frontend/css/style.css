@@ -1889,6 +1889,25 @@ select {
     color: var(--sky);
 }
 
+.password-reset-status {
+    min-height: 0;
+    margin-bottom: 12px;
+    font-size: 12px;
+    line-height: 1.5;
+}
+
+.password-reset-status:empty {
+    display: none;
+}
+
+.password-reset-status.success {
+    color: var(--green);
+}
+
+.password-reset-status.error {
+    color: var(--red);
+}
+
 
 /* =========================================================
    AUTH BUTTON
@@ -2307,7 +2326,7 @@ select {
     transition: background 0.2s var(--ios-ease);
 }
 
-.profile:hover {
+.profile:hover { 
     background: rgba(255, 255, 255, 0.06);
 }
 
