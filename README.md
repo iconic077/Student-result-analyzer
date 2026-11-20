@@ -49,6 +49,16 @@ npx nodemon server.js
 
 Import `database/result_analyzer_export.sql` into your own local MySQL server before running the backend.
 
+## Password recovery
+
+The password reset endpoints send a six-digit code by email. Configure these environment variables for the backend:
+
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, and `SMTP_PASSWORD`
+- `SMTP_FROM_EMAIL` and `SMTP_USE_TLS` (`true` by default)
+- `JWT_SECRET` to securely hash reset codes
+
+Reset codes expire after 10 minutes, and another code can be requested after 60 seconds. The backend creates its `password_reset_codes` table automatically.
+
 ## Team
 
 - Aditi Devrani
